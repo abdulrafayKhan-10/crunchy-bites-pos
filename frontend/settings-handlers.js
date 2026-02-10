@@ -45,21 +45,30 @@ async function createBackup() {
 }
 
 async function restoreBackup() {
+    console.log('=== RESTORE BACKUP CLICKED ===');
+
     if (!confirm('⚠️ WARNING: This will replace your current database with the backup.\\n\\nMake sure you have a recent backup before proceeding.\\n\\nContinue?')) {
+        console.log('User canceled restore');
         return;
     }
 
     try {
+        console.log('Calling window.api.backup.restore()...');
         const result = await window.api.backup.restore();
+        console.log('Restore result:', result);
 
         if (result.canceled) {
+            console.log('File selection canceled');
             return;
         }
 
         if (result.success) {
+            console.log('Restore successful! Restarting app...');
             alert('✅ Backup restored successfully!\\n\\nThe application will now restart to load the restored database.');
-            location.reload();
+            // Restart the entire app to reload database from disk
+            await window.api.backup.restartApp();
         } else {
+            console.error('Restore failed:', result.error);
             showToast('Error restoring backup: ' + result.error, 'error');
         }
     } catch (error) {

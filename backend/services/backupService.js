@@ -184,16 +184,23 @@ class BackupService {
      */
     async restoreBackup(zipPath) {
         try {
+            console.log('=== RESTORE BACKUP DEBUG ===');
+            console.log('ZIP path:', zipPath);
+            console.log('Current DB path:', this.dbPath);
+
             if (!fs.existsSync(zipPath)) {
                 throw new Error('Backup file not found');
             }
+            console.log('✓ Backup file exists');
 
             // Create temporary directory for extraction
             const tempDir = path.join(app.getPath('temp'), 'crunchy-bites-restore-' + Date.now());
             fs.mkdirSync(tempDir, { recursive: true });
+            console.log('✓ Temp directory created:', tempDir);
 
             // Extract ZIP
             await extract(zipPath, { dir: tempDir });
+            console.log('✓ ZIP extracted');
 
             // Validate extracted files
             const extractedDbPath = path.join(tempDir, 'crunchy-bites.db');
@@ -202,32 +209,42 @@ class BackupService {
             if (!fs.existsSync(extractedDbPath)) {
                 throw new Error('Invalid backup file: database not found');
             }
+            console.log('✓ Database found in backup:', extractedDbPath);
 
             // Read metadata if available
             let metadata = null;
             if (fs.existsSync(metadataPath)) {
                 metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
+                console.log('✓ Metadata:', metadata);
             }
 
             // Create backup of current database before replacing
             const currentDbBackup = this.dbPath + '.before-restore';
             if (fs.existsSync(this.dbPath)) {
                 fs.copyFileSync(this.dbPath, currentDbBackup);
+                console.log('✓ Current DB backed up to:', currentDbBackup);
             }
 
             // Replace current database
             fs.copyFileSync(extractedDbPath, this.dbPath);
+            console.log('✓ Database file replaced');
+            console.log('  From:', extractedDbPath);
+            console.log('  To:', this.dbPath);
 
             // Clean up temp directory
             fs.rmSync(tempDir, { recursive: true, force: true });
+            console.log('✓ Temp directory cleaned up');
 
+            console.log('=== RESTORE COMPLETED SUCCESSFULLY ===');
             return {
                 success: true,
                 metadata,
                 message: 'Database restored successfully. Please restart the application.'
             };
         } catch (error) {
+            console.error('!!! RESTORE ERROR !!!');
             console.error('Restore backup error:', error);
+            console.error('Error stack:', error.stack);
             return {
                 success: false,
                 error: error.message

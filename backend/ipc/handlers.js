@@ -310,6 +310,13 @@ function setupIpcHandlers() {
         }
     });
 
+    // App restart handler
+    ipcMain.handle('app:restart', async () => {
+        const { app } = require('electron');
+        app.relaunch();
+        app.exit(0);
+    });
+
     console.log('IPC handlers registered successfully');
 }
 

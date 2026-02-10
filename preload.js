@@ -55,6 +55,7 @@ contextBridge.exposeInMainWorld('api', {
         restore: () => ipcRenderer.invoke('backup:restore'),
         getInfo: () => ipcRenderer.invoke('backup:getInfo'),
         setAutoBackup: (enabled) => ipcRenderer.invoke('backup:setAutoBackup', enabled),
-        runAutoBackup: () => ipcRenderer.invoke('backup:runAutoBackup')
+        runAutoBackup: () => ipcRenderer.invoke('backup:runAutoBackup'),
+        restartApp: () => ipcRenderer.invoke('app:restart')
     }
 });
