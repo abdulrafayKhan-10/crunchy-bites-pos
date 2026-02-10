@@ -1,0 +1,510 @@
+const { BrowserWindow } = require('electron');
+const path = require('path');
+const fs = require('fs');
+
+/**
+ * Print Service
+ * Handles receipt printing and PDF generation
+ */
+
+class PrintService {
+  /**
+   * Generate receipt HTML from order data
+   */
+  static generateReceiptHTML(orderData) {
+    const logoPath = path.join(__dirname, '..', 'assets', 'logo.png');
+    const logoExists = fs.existsSync(logoPath);
+
+    const items = orderData.items.map(item => {
+      const name = item.product_name || item.deal_name;
+      return `
+        <tr>
+          <td>${name}</td>
+          <td class="center">${item.quantity}</td>
+          <td class="right">Rs. ${item.unit_price.toFixed(2)}</td>
+          <td class="right">Rs. ${item.total_price.toFixed(2)}</td>
+        </tr>
+      `;
+    }).join('');
+
+    const customerInfo = orderData.customer_name ? `
+      <div class="customer-info">
+        <p><strong>Customer:</strong> ${orderData.customer_name}</p>
+        ${orderData.customer_phone ? `<p><strong>Phone:</strong> ${orderData.customer_phone}</p>` : ''}
+        ${orderData.customer_address ? `<p><strong>Address:</strong> ${orderData.customer_address}</p>` : ''}
+      </div>
+    ` : '<p class="walk-in">Walk-in Customer</p>';
+
+    return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Courier New', monospace;
+      width: 80mm;
+      padding: 10mm;
+      font-size: 12px;
+    }
+    
+    .header {
+      text-align: center;
+      margin-bottom: 20px;
+      border-bottom: 2px dashed #333;
+      padding-bottom: 15px;
+    }
+    
+    .logo {
+      max-width: 150px;
+      margin-bottom: 10px;
+    }
+    
+    .shop-name {
+      font-size: 24px;
+      font-weight: bold;
+      margin: 10px 0;
+    }
+    
+    .receipt-title {
+      font-size: 16px;
+      font-weight: bold;
+      margin: 10px 0;
+    }
+    
+    .order-info {
+      margin: 15px 0;
+      font-size: 11px;
+    }
+    
+    .customer-info {
+      margin: 15px 0;
+      padding: 10px;
+      background: #f5f5f5;
+      border-radius: 5px;
+    }
+    
+    .customer-info p {
+      margin: 5px 0;
+    }
+    
+    .walk-in {
+      text-align: center;
+      font-style: italic;
+      margin: 10px 0;
+      color: #666;
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 15px 0;
+    }
+    
+    th {
+      border-top: 1px solid #333;
+      border-bottom: 1px solid #333;
+      padding: 8px 4px;
+      text-align: left;
+      font-weight: bold;
+    }
+    
+    td {
+      padding: 6px 4px;
+      border-bottom: 1px dotted #999;
+    }
+    
+    .center {
+      text-align: center;
+    }
+    
+    .right {
+      text-align: right;
+    }
+    
+    .total-row {
+      font-weight: bold;
+      font-size: 14px;
+      border-top: 2px solid #333;
+      border-bottom: 2px solid #333;
+    }
+    
+    .footer {
+      text-align: center;
+      margin-top: 20px;
+      padding-top: 15px;
+      border-top: 2px dashed #333;
+      font-size: 11px;
+    }
+    
+    .footer p {
+      margin: 5px 0;
+    }
+    
+    @media print {
+      body {
+        width: 80mm;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    ${logoExists ? `<img src="file://${logoPath}" alt="Crunchy Bites" class="logo">` : '<div class="shop-name">Crunchy Bites</div>'}
+    <div class="receipt-title">RECEIPT</div>
+  </div>
+  
+  <div class="order-info">
+    <p><strong>Order #:</strong> ${orderData.id}</p>
+    <p><strong>Date:</strong> ${new Date(orderData.order_date).toLocaleString()}</p>
+  </div>
+  
+  ${customerInfo}
+  
+  <table>
+    <thead>
+      <tr>
+        <th>Item</th>
+        <th class="center">Qty</th>
+        <th class="right">Price</th>
+        <th class="right">Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${items}
+      <tr class="total-row">
+        <td colspan="3">TOTAL</td>
+        <td class="right">Rs. ${orderData.total_amount.toFixed(2)}</td>
+      </tr>
+    </tbody>
+  </table>
+  
+  <div class="footer">
+    <p><strong>Thank you for your order!</strong></p>
+    <p>Visit us again at Crunchy Bites</p>
+    <p>Enjoy your meal! 🍔🍟</p>
+  </div>
+</body>
+</html>
+    `;
+  }
+
+  /**
+   * Print receipt or generate PDF
+   * Always generates PDF for reliability
+   */
+  static async printReceipt(orderData, mainWindow) {
+    try {
+      console.log('Starting PDF generation for order:', orderData.id);
+      const html = this.generateReceiptHTML(orderData);
+
+      // Create hidden window for printing
+      const printWindow = new BrowserWindow({
+        show: false,
+        webPreferences: {
+          nodeIntegration: true
+        }
+      });
+
+      // Load HTML content
+      await printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+
+      // Wait for content to load
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Generate PDF directly
+      console.log('Generating PDF...');
+      const pdfData = await printWindow.webContents.printToPDF({
+        printBackground: true,
+        margins: {
+          marginType: 1 // minimum margins
+        }
+      });
+
+      // Save PDF to downloads folder
+      const { app, shell } = require('electron');
+      const downloadsPath = app.getPath('downloads');
+      const fileName = `receipt-${orderData.id}-${Date.now()}.pdf`;
+      const filePath = path.join(downloadsPath, fileName);
+
+      console.log('Saving PDF to:', filePath);
+      fs.writeFileSync(filePath, pdfData);
+      console.log('PDF saved successfully');
+
+      // Open downloads folder and highlight the file
+      shell.showItemInFolder(filePath);
+
+      printWindow.close();
+
+      return {
+        success: true,
+        method: 'pdf',
+        filePath,
+        fileName
+      };
+    } catch (error) {
+      console.error('Print/PDF generation error:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  /**
+   * Generate report HTML
+   */
+  static generateReportHTML(reportData) {
+    const logoPath = path.join(__dirname, '..', 'assets', 'logo.png');
+    const logoExists = fs.existsSync(logoPath);
+
+    const productRows = reportData.products.map(p => `
+      <tr>
+        <td>${p.product_name}</td>
+        <td>${p.category}</td>
+        <td class="center">${p.quantity_sold}</td>
+        <td class="right">Rs. ${p.total_sales.toFixed(2)}</td>
+      </tr>
+    `).join('');
+
+    const dealRows = reportData.deals.map(d => `
+      <tr>
+        <td>${d.deal_name}</td>
+        <td class="center">${d.quantity_sold}</td>
+        <td class="right">Rs. ${d.total_sales.toFixed(2)}</td>
+      </tr>
+    `).join('');
+
+    return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    
+    .header {
+      text-align: center;
+      margin-bottom: 30px;
+      border-bottom: 3px solid #333;
+      padding-bottom: 20px;
+    }
+    
+    .logo {
+      max-width: 200px;
+      margin-bottom: 15px;
+    }
+    
+    h1 {
+      margin: 10px 0;
+      color: #333;
+    }
+    
+    .summary {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin: 30px 0;
+    }
+    
+    .summary-card {
+      background: #f8f9fa;
+      padding: 20px;
+      border-radius: 8px;
+      border-left: 4px solid #007bff;
+    }
+    
+    .summary-card h3 {
+      margin: 0 0 10px 0;
+      color: #666;
+      font-size: 14px;
+      text-transform: uppercase;
+    }
+    
+    .summary-card .value {
+      font-size: 28px;
+      font-weight: bold;
+      color: #333;
+    }
+    
+    h2 {
+      margin: 30px 0 15px 0;
+      color: #333;
+      border-bottom: 2px solid #eee;
+      padding-bottom: 10px;
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+    }
+    
+    th {
+      background: #333;
+      color: white;
+      padding: 12px;
+      text-align: left;
+    }
+    
+    td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #eee;
+    }
+    
+    tr:hover {
+      background: #f8f9fa;
+    }
+    
+    .center {
+      text-align: center;
+    }
+    
+    .right {
+      text-align: right;
+    }
+    
+    .footer {
+      margin-top: 40px;
+      text-align: center;
+      color: #666;
+      font-size: 12px;
+      border-top: 2px solid #eee;
+      padding-top: 20px;
+    }
+    
+    @media print {
+      body {
+        padding: 10px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    ${logoExists ? `<img src="file://${logoPath}" alt="Crunchy Bites" class="logo">` : '<h1>Crunchy Bites</h1>'}
+    <h1>End of Day Report</h1>
+    <p><strong>Date:</strong> ${reportData.date}</p>
+  </div>
+  
+  <div class="summary">
+    <div class="summary-card">
+      <h3>Total Orders</h3>
+      <div class="value">${reportData.summary.total_orders}</div>
+    </div>
+    <div class="summary-card">
+      <h3>Total Sales</h3>
+      <div class="value">Rs. ${reportData.summary.total_sales.toFixed(2)}</div>
+    </div>
+  </div>
+  
+  ${reportData.products.length > 0 ? `
+    <h2>Product Sales Breakdown</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Product</th>
+          <th>Category</th>
+          <th class="center">Quantity</th>
+          <th class="right">Total Sales</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${productRows}
+      </tbody>
+    </table>
+  ` : ''}
+  
+  ${reportData.deals.length > 0 ? `
+    <h2>Deal Sales Breakdown</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Deal</th>
+          <th class="center">Quantity</th>
+          <th class="right">Total Sales</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${dealRows}
+      </tbody>
+    </table>
+  ` : ''}
+  
+  <div class="footer">
+    <p>Generated on ${new Date().toLocaleString()}</p>
+    <p>Crunchy Bites POS System</p>
+  </div>
+</body>
+</html>
+    `;
+  }
+
+  /**
+   * Print or save report
+   * Always generates PDF for reliability
+   */
+  static async printReport(reportData) {
+    try {
+      console.log('Starting report PDF generation for date:', reportData.date);
+      const html = this.generateReportHTML(reportData);
+
+      const printWindow = new BrowserWindow({
+        show: false,
+        webPreferences: {
+          nodeIntegration: true
+        }
+      });
+
+      await printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Generate PDF directly
+      console.log('Generating report PDF...');
+      const pdfData = await printWindow.webContents.printToPDF({
+        printBackground: true,
+        landscape: false
+      });
+
+      const { app, shell } = require('electron');
+      const downloadsPath = app.getPath('downloads');
+      const fileName = `report-${reportData.date}-${Date.now()}.pdf`;
+      const filePath = path.join(downloadsPath, fileName);
+
+      console.log('Saving report PDF to:', filePath);
+      fs.writeFileSync(filePath, pdfData);
+      console.log('Report PDF saved successfully');
+
+      // Open downloads folder and highlight the file
+      shell.showItemInFolder(filePath);
+
+      printWindow.close();
+
+      return {
+        success: true,
+        method: 'pdf',
+        filePath,
+        fileName
+      };
+    } catch (error) {
+      console.error('Report print/PDF error:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+}
+
+module.exports = PrintService;

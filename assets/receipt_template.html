@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Receipt</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            width: 80mm;
+            padding: 10mm;
+            font-size: 12px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            border-bottom: 2px dashed #333;
+            padding-bottom: 15px;
+        }
+
+        .logo {
+            max-width: 150px;
+            margin-bottom: 10px;
+        }
+
+        .shop-name {
+            font-size: 24px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .receipt-title {
+            font-size: 16px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .order-info {
+            margin: 15px 0;
+            font-size: 11px;
+        }
+
+        .customer-info {
+            margin: 15px 0;
+            padding: 10px;
+            background: #f5f5f5;
+            border-radius: 5px;
+        }
+
+        .customer-info p {
+            margin: 5px 0;
+        }
+
+        .walk-in {
+            text-align: center;
+            font-style: italic;
+            margin: 10px 0;
+            color: #666;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+
+        th {
+            border-top: 1px solid #333;
+            border-bottom: 1px solid #333;
+            padding: 8px 4px;
+            text-align: left;
+            font-weight: bold;
+        }
+
+        td {
+            padding: 6px 4px;
+            border-bottom: 1px dotted #999;
+        }
+
+        .center {
+            text-align: center;
+        }
+
+        .right {
+            text-align: right;
+        }
+
+        .total-row {
+            font-weight: bold;
+            font-size: 14px;
+            border-top: 2px solid #333;
+            border-bottom: 2px solid #333;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 2px dashed #333;
+            font-size: 11px;
+        }
+
+        .footer p {
+            margin: 5px 0;
+        }
+
+        @media print {
+            body {
+                width: 80mm;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="receipt-content">
+        <!-- Content will be injected here via IPC -->
+        <h3 style="text-align:center; margin-top: 20px;">Loading receipt...</h3>
+    </div>
+
+    <script>
+        // Global function to be called from Main process via executeJavaScript
+        window.renderReceipt = function (data) {
+            try {
+                const { orderData, logoUrl } = data;
+
+                const items = orderData.items.map(item => {
+                    const name = item.product_name || item.deal_name;
+                    return `
+                        <tr>
+                            <td>${name}</td>
+                            <td class="center">${item.quantity}</td>
+                            <td class="right">Rs. ${item.unit_price.toFixed(2)}</td>
+                            <td class="right">Rs. ${item.total_price.toFixed(2)}</td>
+                        </tr>
+                    `;
+                }).join('');
+
+                const customerInfo = orderData.customer_name ? `
+                    <div class="customer-info">
+                        <p><strong>Customer:</strong> ${orderData.customer_name}</p>
+                        ${orderData.customer_phone ? `<p><strong>Phone:</strong> ${orderData.customer_phone}</p>` : ''}
+                        ${orderData.customer_address ? `<p><strong>Address:</strong> ${orderData.customer_address}</p>` : ''}
+                    </div>
+                ` : '<p class="walk-in">Walk-in Customer</p>';
+
+                const logoHtml = logoUrl
+                    ? `<img src="${logoUrl}" alt="Crunchy Bites" class="logo">`
+                    : '<div class="shop-name">Crunchy Bites</div>';
+
+                const html = `
+                    <div class="header">
+                        ${logoHtml}
+                        <div class="receipt-title">RECEIPT</div>
+                    </div>
+                    <div class="order-info">
+                        <p><strong>Order #:</strong> ${orderData.id}</p>
+                        <p><strong>Date:</strong> ${new Date(orderData.order_date).toLocaleString('en-PK', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}</p>
+                    </div>
+                    ${customerInfo}
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Item</th>
+                                <th class="center">Qty</th>
+                                <th class="right">Price</th>
+                                <th class="right">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${items}
+                            <tr class="total-row">
+                                <td colspan="3">TOTAL</td>
+                                <td class="right">Rs. ${orderData.total_amount.toFixed(2)}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div class="footer">
+                        <p><strong>Thank you for your order!</strong></p>
+                        <p>Visit us again at Crunchy Bites</p>
+                        <p>Enjoy your meal! 🍔🍟</p>
+                    </div>
+                `;
+
+                document.getElementById('receipt-content').innerHTML = html;
+                return true;
+            } catch (err) {
+                console.error('Render error:', err);
+                document.getElementById('receipt-content').innerHTML = 'Error rendering receipt: ' + err.message;
+                return false;
+            }
+        };
+
+        // Keep IPC listener as backup or for dev testing
+        try {
+            const { ipcRenderer } = require('electron');
+            ipcRenderer.on('receipt-data', (event, data) => {
+                window.renderReceipt(data);
+                ipcRenderer.send('receipt-rendered');
+            });
+        } catch (e) {
+            console.warn('IPC not available (browser mode?)');
+        }
+    </script>
+</body>
+
+</html>

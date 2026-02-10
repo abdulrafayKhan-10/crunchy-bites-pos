@@ -1,0 +1,64 @@
+{
+  "name": "crunchy-bites-pos",
+  "version": "1.0.0",
+  "description": "Offline-first POS system for Crunchy Bites fast-food outlet",
+  "main": "electron.js",
+  "scripts": {
+    "start": "node_modules\\.bin\\electron.cmd .",
+    "dev": "node_modules\\.bin\\electron.cmd . --dev",
+    "build": "electron-builder",
+    "build:win": "electron-builder --win",
+    "seed": "node seed.js"
+  },
+  "keywords": [
+    "pos",
+    "electron",
+    "offline",
+    "restaurant"
+  ],
+  "author": "Crunchy Bites",
+  "license": "MIT",
+  "dependencies": {
+    "archiver": "^7.0.1",
+    "archiver-utils": "^5.0.2",
+    "electron-store": "^8.1.0",
+    "extract-zip": "^2.0.1",
+    "pdfkit": "^0.17.2",
+    "sql.js": "^1.12.0"
+  },
+  "devDependencies": {
+    "electron": "^28.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.crunchybites.pos",
+    "productName": "Crunchy Bites POS",
+    "directories": {
+      "output": "dist"
+    },
+    "asar": false,
+    "win": {
+      "target": [
+        "portable"
+      ],
+      "icon": "assets/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "installerIcon": "assets/icon.png",
+      "uninstallerIcon": "assets/icon.png"
+    },
+    "files": [
+      "**/*",
+      "!debug_db.js",
+      "!test-*.js",
+      "!*.log",
+      "!*.txt",
+      "!.gitignore",
+      "!README.md"
+    ]
+  }
+}

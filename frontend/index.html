@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Crunchy Bites POS</title>
+  <link rel="stylesheet" href="styles/main.css">
+  <link rel="stylesheet" href="styles/pos.css">
+</head>
+
+<body>
+  <!-- Header -->
+  <header class="app-header">
+    <div class="header-content">
+      <img src="../assets/logo.png" alt="Crunchy Bites" class="header-logo">
+      <h1>Crunchy Bites POS</h1>
+    </div>
+    <div class="header-date" id="currentDate"></div>
+  </header>
+
+  <!-- Navigation -->
+  <nav class="app-nav">
+    <button class="nav-btn active" data-view="new-order">
+      <span class="nav-icon">🛒</span>
+      New Order
+    </button>
+    <button class="nav-btn" data-view="products">
+      <span class="nav-icon">🍔</span>
+      Products
+    </button>
+    <button class="nav-btn" data-view="deals">
+      <span class="nav-icon">🎁</span>
+      Deals
+    </button>
+    <button class="nav-btn" data-view="reports">
+      <span class="nav-icon">📊</span>
+      Reports
+    </button>
+    <button class="nav-btn" data-view="orders">
+      <span class="nav-icon">📋</span>
+      Orders
+    </button>
+    <button class="nav-btn" data-view="settings">
+      <span class="nav-icon">⚙️</span>
+      Settings
+    </button>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="app-main">
+    <!-- New Order View -->
+    <div id="new-order-view" class="view active">
+      <div class="pos-layout">
+        <!-- Left: Product Selection -->
+        <div class="product-selection">
+          <div class="section-header">
+            <h2>Select Items</h2>
+            <div class="category-filter" id="categoryFilter">
+              <button class="filter-btn active" data-category="all">All</button>
+            </div>
+          </div>
+
+          <div class="tabs">
+            <button class="tab-btn active" data-tab="products">Products</button>
+            <button class="tab-btn" data-tab="deals">Deals</button>
+          </div>
+
+          <div class="items-grid" id="productsGrid"></div>
+          <div class="items-grid hidden" id="dealsGrid"></div>
+        </div>
+
+        <!-- Right: Cart & Checkout -->
+        <div class="cart-section">
+          <h2>Current Order</h2>
+
+          <div class="cart-section-content">
+            <div class="cart-items" id="cartItems">
+              <p class="empty-cart">No items added yet</p>
+            </div>
+
+            <div class="cart-total">
+              <span>Total:</span>
+              <span class="total-amount" id="totalAmount">Rs. 0.00</span>
+            </div>
+          </div>
+
+          <div class="cart-bottom">
+            <div class="customer-details">
+              <h3>Customer Details</h3>
+              <div class="form-group">
+                <label class="checkbox-label">
+                  <input type="checkbox" id="walkInCheckbox" checked>
+                  <span>Walk-in Customer</span>
+                </label>
+              </div>
+              <div id="customerForm" class="hidden">
+                <div class="input-group">
+                  <label for="customerName">Customer Name</label>
+                  <input type="text" id="customerName" placeholder="Enter customer name">
+                </div>
+                <div class="input-group">
+                  <label for="customerPhone">Phone Number</label>
+                  <input type="tel" id="customerPhone" placeholder="Enter phone number" pattern="[0-9]*"
+                    inputmode="numeric" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+                </div>
+                <div class="input-group">
+                  <label for="customerAddress">Delivery Address</label>
+                  <textarea id="customerAddress" placeholder="Enter delivery address" rows="2"></textarea>
+                </div>
+              </div>
+            </div>
+
+            <div class="cart-actions">
+              <button class="btn btn-secondary" id="clearCartBtn">Clear</button>
+              <button class="btn btn-primary" id="placeOrderBtn">Place Order & Print</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Products View -->
+    <div id="products-view" class="view">
+      <div class="view-header">
+        <h2>Manage Products</h2>
+        <button class="btn btn-primary" id="addProductBtn">+ Add Product</button>
+      </div>
+      <div class="table-container">
+        <table class="data-table" id="productsTable">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Category</th>
+              <th>Price</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Deals View -->
+    <div id="deals-view" class="view">
+      <div class="view-header">
+        <h2>Manage Deals</h2>
+        <button class="btn btn-primary" id="addDealBtn">+ Add Deal</button>
+      </div>
+      <div class="deals-container" id="dealsContainer"></div>
+    </div>
+
+    <!-- Reports View -->
+    <div id="reports-view" class="view">
+      <div class="view-header">
+        <h2>Sales Reports</h2>
+        <div class="report-controls">
+          <input type="date" id="reportDate" class="date-input">
+          <button class="btn btn-primary" id="headerPrintReportBtn" style="display: none;"
+            onclick="printReport()">Download Report</button>
+        </div>
+      </div>
+      <div id="reportContent" class="report-content"></div>
+    </div>
+
+    <!-- Orders View -->
+    <div id="orders-view" class="view">
+      <div class="view-header">
+        <h2>Order History</h2>
+        <div class="order-filters">
+          <input type="date" id="orderFilterDate" class="date-input">
+          <button class="btn btn-secondary" id="showAllOrdersBtn">Show All</button>
+        </div>
+      </div>
+      <div class="table-container">
+        <table class="data-table" id="ordersTable">
+          <thead>
+            <tr>
+              <th>Order #</th>
+              <th>Date</th>
+              <th>Customer</th>
+              <th>Total</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Settings View -->
+    <div id="settings-view" class="view">
+      <div class="view-header">
+        <h2>Settings</h2>
+      </div>
+
+      <div class="settings-container">
+        <div class="settings-section">
+          <h3>Database Management</h3>
+
+          <div class="db-info-card">
+            <div class="info-row">
+              <span class="info-label">Database Location:</span>
+              <span class="info-value" id="dbPath">Loading...</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Database Size:</span>
+              <span class="info-value" id="dbSize">Loading...</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Last Auto-Backup:</span>
+              <span class="info-value" id="lastBackup">Loading...</span>
+            </div>
+          </div>
+
+          <div class="settings-actions">
+            <button class="btn btn-primary" id="createBackupBtn">
+              💾 Backup Database
+            </button>
+            <button class="btn btn-secondary" id="restoreBackupBtn">
+              📥 Restore Backup
+            </button>
+          </div>
+
+          <div class="settings-toggle">
+            <label class="toggle-label">
+              <input type="checkbox" id="autoBackupToggle" checked>
+              <span>Enable Auto-Backup (Daily)</span>
+            </label>
+            <p class="toggle-description">Automatically backs up your database once per day when the app starts. Keeps
+              the last 7 backups.</p>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h3>About</h3>
+          <div class="about-info">
+            <p><strong>Crunchy Bites POS</strong></p>
+            <p>Version 1.0.0</p>
+            <p>Offline-first Point of Sale System</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Modal for Product Form -->
+  <div id="productModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="productModalTitle">Add Product</h3>
+        <button class="close-btn">&times;</button>
+      </div>
+      <form id="productForm">
+        <input type="hidden" id="productId">
+        <div class="form-group">
+          <label>Product Name *</label>
+          <input type="text" id="productName" required>
+        </div>
+        <div class="form-group">
+          <label>Category *</label>
+          <input type="text" id="productCategory" list="categoryList" required placeholder="Select or type category"
+            onclick="this.select()">
+          <datalist id="categoryList">
+            <!-- Populated dynamically -->
+          </datalist>
+        </div>
+        <div class="form-group">
+          <label>Price (Rs.) *</label>
+          <input type="number" id="productPrice" step="0.01" min="0" required>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary close-btn">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal for Deal Form -->
+  <div id="dealModal" class="modal">
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <h3 id="dealModalTitle">Add Deal</h3>
+        <button class="close-btn">&times;</button>
+      </div>
+      <form id="dealForm">
+        <input type="hidden" id="dealId">
+        <div class="form-group">
+          <label>Deal Name *</label>
+          <input type="text" id="dealName" required>
+        </div>
+        <div class="form-group">
+          <label>Description</label>
+          <textarea id="dealDescription" rows="2"></textarea>
+        </div>
+        <div class="form-group">
+          <label>Price (Rs.) *</label>
+          <input type="number" id="dealPrice" step="0.01" min="0" required>
+        </div>
+        <div class="form-group">
+          <label>Items in Deal *</label>
+          <div id="dealItemsContainer"></div>
+          <button type="button" class="btn btn-secondary" id="addDealItemBtn">+ Add Item</button>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary close-btn">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="renderer.js"></script>
+  <script src="settings-handlers.js"></script>
+</body>
+
+</html>
