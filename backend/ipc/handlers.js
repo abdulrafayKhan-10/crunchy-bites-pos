@@ -197,24 +197,19 @@ function setupIpcHandlers() {
 
     const PrintService = require('../services/printService');
 
-    ipcMain.handle('print:receipt', async (event, orderIdOrData) => {
+    ipcMain.handle('print:receipt', async (event, orderDataOrId) => {
         try {
             const mainWindow = require('electron').BrowserWindow.getAllWindows()[0];
+            let orderData = orderDataOrId;
 
-            let orderData;
-
-            // Check if we received an ID (number) or the full order object
-            if (typeof orderIdOrData === 'number') {
-                // Fetch the full order data
-                orderData = orderService.getOrderById(orderIdOrData);
-                if (!orderData) {
-                    return { success: false, error: 'Order not found' };
+            // If input is just an ID (number or string), fetch the full order
+            if (typeof orderDataOrId === 'number' || typeof orderDataOrId === 'string') {
+                console.log('Printing receipt for Order ID:', orderDataOrId);
+                const order = orderService.getOrderById(orderDataOrId);
+                if (!order) {
+                    throw new Error('Order not found');
                 }
-            } else if (typeof orderIdOrData === 'object' && orderIdOrData.id) {
-                // We already have the full order object
-                orderData = orderIdOrData;
-            } else {
-                return { success: false, error: 'Invalid order data' };
+                orderData = order;
             }
 
             const result = await PrintService.printReceipt(orderData, mainWindow);

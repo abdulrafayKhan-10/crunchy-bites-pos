@@ -6,186 +6,51 @@ class PrintService {
 
   static async printReceipt(orderData, mainWindow) {
     let printWindow = null;
+    const escPosService = require('./escposService');
 
     try {
+      console.log('=== RECEIPT PRINT START ===');
 
-
-      // Create hidden window with receipt dimensions (80mm = ~302px)
-      printWindow = new BrowserWindow({
-        show: false,
-        width: 302,  // 80mm in pixels at 96 DPI
-        height: 800, // Will be adjusted based on content
-        webPreferences: {
-          nodeIntegration: true,
-          contextIsolation: false
-        }
-      });
-
-      // Load template
-      const templatePath = path.join(__dirname, '..', '..', 'assets', 'receipt_template.html');
-      console.log('Template path:', templatePath);
-      console.log('Template exists:', fs.existsSync(templatePath));
-
-      await printWindow.loadFile(templatePath);
-      console.log('✓ Template loaded');
-
-      // Prepare logo - use file:// URL instead of base64 for printToPDF compatibility
-      const logoPath = path.join(__dirname, '..', '..', 'assets', 'logo.png');
-      let logoUrl = '';
-      if (fs.existsSync(logoPath)) {
-        // Convert to file:// URL for Electron
-        logoUrl = `file:///${logoPath.replace(/\\/g, '/')}`;
-
-      } else {
-
-      }
-
-      // Prepare receipt data
-      // NOTE: Passing empty logoUrl because Electron's printToPDF has issues with images
-      // The window display will show "Crunchy Bites" text instead
-      const receiptData = {
-        orderData,
-        logoUrl: ''  // Empty to avoid printToPDF issues
-      };
-
-
-
-      // Call renderReceipt function with proper error handling
-      const renderResult = await printWindow.webContents.executeJavaScript(`
-        (function() {
-          try {
-            console.log('executeJavaScript: Starting render');
-            if (typeof window.renderReceipt !== 'function') {
-              return { success: false, error: 'renderReceipt function not found' };
-            }
-            
-            const data = ${JSON.stringify(receiptData)};
-            console.log('executeJavaScript: Data received, items count:', data.orderData.items.length);
-            
-            const result = window.renderReceipt(data);
-            console.log('executeJavaScript: Render complete, result:', result);
-            
-            // Check if content was actually rendered
-            const content = document.getElementById('receipt-content').innerHTML;
-            const hasContent = content && !content.includes('Loading receipt');
-            
-            return { 
-              success: result, 
-              hasContent: hasContent,
-              contentLength: content.length 
-            };
-          } catch (err) {
-            console.error('executeJavaScript: Error:', err);
-            return { success: false, error: err.message, stack: err.stack };
-          }
-        })()
-      `);
-
-      if (!renderResult.success) {
-        throw new Error('Render failed: ' + (renderResult.error || 'Unknown error'));
-      }
-
-      if (!renderResult.hasContent) {
-        throw new Error('Receipt content is empty after render');
-      }
-
-      // Delay for layout/paint to complete before screenshot
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // ---------------------------------------------------------
-      // PRINTER DETECTION & PRINTING
-      // ---------------------------------------------------------
-
+      // 1. Get Printers to find the correct one
+      // We still need a BrowserWindow to detect printers reliably in Electron
+      printWindow = new BrowserWindow({ show: false });
       const printers = await printWindow.webContents.getPrintersAsync();
+      printWindow.close(); // Close immediately after getting printers
 
-      if (printers && printers.length > 0) {
-        const printerName = printers[0].name;
-
-
-        try {
-          await printWindow.webContents.print({
-            silent: true,
-            printBackground: true,
-            deviceName: printerName,
-            margins: { marginType: 'none' }
-          });
-
-
-          printWindow.close();
-          return {
-            success: true,
-            method: 'print',
-            printer: printerName
-          };
-
-        } catch (printErr) {
-          console.error('Print failed:', printErr);
-        }
-
+      if (!printers || printers.length === 0) {
+        throw new Error('No printers found');
       }
 
-      // ---------------------------------------------------------
-      // PDF FALLBACK - Using capturePage workaround
-      // ---------------------------------------------------------
+      console.log('Available printers:', printers.map(p => p.name).join(', '));
 
+      // 2. Select Printer
+      const defaultPrinter = printers.find(p => p.isDefault);
+      const printerToUse = defaultPrinter || printers[0];
+      const printerName = printerToUse.name;
 
+      console.log(`Selected Printer: ${printerName}`);
 
-      // Capture the rendered page as an image
-      const image = await printWindow.webContents.capturePage();
-      const imageBuffer = image.toPNG();
+      // 3. Generate ESC/POS Buffer
+      console.log('Generating ESC/POS buffer...');
+      const buffer = await escPosService.generateReceiptBuffer(orderData);
 
+      // 4. Send to Printer
+      console.log('Sending to printer...');
+      await escPosService.printToWindows(buffer, printerName);
 
-
-      // Create PDF with the image using PDFKit
-      const PDFDocument = require('pdfkit');
-      const { app, shell } = require('electron');
-      const downloadsPath = app.getPath('downloads');
-      const fileName = `receipt-${orderData.id}-${Date.now()}.pdf`;
-      const filePath = path.join(downloadsPath, fileName);
-
-      // Create PDF document with thermal printer dimensions (80mm width)
-      // Use actual image dimensions for perfect fit
-      const imageSize = image.getSize();
-      const pdfWidth = 226.77; // 80mm in points
-      const pdfHeight = (imageSize.height / imageSize.width) * pdfWidth; // Maintain aspect ratio
-
-      const doc = new PDFDocument({
-        size: [pdfWidth, pdfHeight],
-        margins: { top: 0, bottom: 0, left: 0, right: 0 }
-      });
-
-      // Pipe to file
-      const stream = fs.createWriteStream(filePath);
-      doc.pipe(stream);
-
-      // Add the captured image to fill the entire page
-      doc.image(imageBuffer, 0, 0, {
-        width: pdfWidth,
-        height: pdfHeight
-      });
-
-      doc.end();
-
-      // Wait for PDF to be written
-      await new Promise((resolve, reject) => {
-        stream.on('finish', resolve);
-        stream.on('error', reject);
-      });
-
-      shell.openPath(filePath);
-      printWindow.close();
+      console.log('✓ Print job sent successfully');
 
       return {
         success: true,
-        method: 'pdf',
-        filePath,
-        fileName
+        method: 'escpos',
+        printer: printerName
       };
 
     } catch (error) {
-      console.error('❌ Receipt error:', error);
-      console.error('Stack:', error.stack);
-      if (printWindow && !printWindow.isDestroyed()) printWindow.close();
+      console.error('❌ Print failed:', error);
+
+      // Fallback to PDF if ESC/POS fails?
+      // For now, let's just return the error so we can debug the raw printing
       return {
         success: false,
         error: error.message

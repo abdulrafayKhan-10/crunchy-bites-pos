@@ -23,6 +23,8 @@
     "archiver-utils": "^5.0.2",
     "electron-store": "^8.1.0",
     "extract-zip": "^2.0.1",
+    "iconv-lite": "^0.7.2",
+    "node-thermal-printer": "^4.6.0",
     "pdfkit": "^0.17.2",
     "sql.js": "^1.12.0"
   },
