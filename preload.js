@@ -32,7 +32,9 @@ contextBridge.exposeInMainWorld('api', {
         getById: (id) => ipcRenderer.invoke('orders:getById', id),
         getToday: () => ipcRenderer.invoke('orders:getToday'),
         getAll: (limit) => ipcRenderer.invoke('orders:getAll', limit),
-        getByDate: (date) => ipcRenderer.invoke('orders:getByDate', date)
+        getByDate: (date) => ipcRenderer.invoke('orders:getByDate', date),
+        getByRange: (startDate, endDate) => ipcRenderer.invoke('orders:getByRange', startDate, endDate),
+        delete: (id) => ipcRenderer.invoke('orders:delete', id)
     },
 
     // Report API
@@ -47,6 +49,16 @@ contextBridge.exposeInMainWorld('api', {
     print: {
         receipt: (orderData) => ipcRenderer.invoke('print:receipt', orderData),
         report: (reportData) => ipcRenderer.invoke('print:report', reportData)
+    },
+
+    // Expenses API
+    expenses: {
+        add: (data) => ipcRenderer.invoke('expenses:add', data),
+        update: (id, data) => ipcRenderer.invoke('expenses:update', id, data),
+        delete: (id) => ipcRenderer.invoke('expenses:delete', id),
+        getByDate: (date) => ipcRenderer.invoke('expenses:getByDate', date),
+        getByRange: (startDate, endDate) => ipcRenderer.invoke('expenses:getByRange', startDate, endDate),
+        getAll: () => ipcRenderer.invoke('expenses:getAll')
     },
 
     // Backup API

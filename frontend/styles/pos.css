@@ -379,10 +379,23 @@
 }
 
 /* Deals Container */
+.view#deals-view.active {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+}
+
 .deals-container {
+    flex: 1;
+    overflow-y: auto;
+    padding-right: 0.5rem;
+    /* Space for scrollbar */
+    padding-bottom: 2rem;
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     gap: 1.5rem;
+    align-content: start;
 }
 
 .deal-card {
@@ -558,20 +571,58 @@
 }
 
 /* Deal Item Row (for modal) */
+#dealModal .modal-content {
+    max-width: 800px;
+}
+
 .deal-item-row {
     display: flex;
-    gap: 0.75rem;
+    gap: 1rem;
     margin-bottom: 0.75rem;
-    align-items: flex-end;
+    align-items: center;
+    background: #f8f9fa;
+    padding: 0.75rem;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
 }
 
 .deal-item-row select,
 .deal-item-row input {
+    margin-bottom: 0;
+    padding: 0.75rem;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: border-color 0.3s ease;
+    height: auto;
+    /* Let padding define height */
+}
+
+.deal-item-row select:focus,
+.deal-item-row input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+
+.deal-item-row select.deal-item-product {
+    flex: 3;
+}
+
+.deal-item-row input.deal-item-quantity {
     flex: 1;
 }
 
 .deal-item-row button {
     flex-shrink: 0;
+    height: 46px;
+    /* Match input height (approx 1rem font + 1.5rem padding + 4px border) */
+    margin-top: 0;
+}
+
+.deal-items-section {
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color);
 }
 
 /* Order Filters */
@@ -605,22 +656,268 @@
         grid-template-columns: 1fr;
     }
 }
+
 /* Settings View */
-.settings-container { max-width: 900px; margin: 0 auto; }
-.settings-section { background: var(--card-bg); border-radius: 12px; padding: 2rem; margin-bottom: 1.5rem; box-shadow: var(--shadow); }
-.settings-section h3 { font-size: 1.3rem; margin-bottom: 1.5rem; color: var(--text-primary); border-bottom: 2px solid var(--border-color); padding-bottom: 0.75rem; }
-.db-info-card { background: #f8f9fa; border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem; }
-.info-row { display: flex; justify-content: space-between; padding: 0.75rem 0; border-bottom: 1px solid #e0e0e0; }
-.info-row:last-child { border-bottom: none; }
-.info-label { font-weight: 600; color: var(--text-secondary); }
-.info-value { color: var(--text-primary); font-family: monospace; font-size: 0.9rem; }
-.settings-actions { display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
-.settings-actions .btn { flex: 1; min-width: 150px; }
-.settings-toggle { background: #f8f9fa; border-radius: 8px; padding: 1.25rem; }
-.toggle-label { display: flex; align-items: center; gap: 0.75rem; cursor: pointer; font-weight: 500; color: var(--text-primary); }
-.toggle-label input[type=checkbox] { width: 20px; height: 20px; cursor: pointer; }
-.toggle-description { margin-top: 0.75rem; margin-left: 28px; font-size: 0.9rem; color: var(--text-secondary); line-height: 1.5; }
-.about-info { color: var(--text-secondary); line-height: 1.8; }
-.about-info strong { color: var(--text-primary); font-size: 1.1rem; }
-.btn-danger { background-color: #dc3545; color: white; }
-.btn-danger:hover { background-color: #c82333; }
+.settings-container {
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.settings-section {
+    background: var(--card-bg);
+    border-radius: 12px;
+    padding: 2rem;
+    margin-bottom: 1.5rem;
+    box-shadow: var(--shadow);
+}
+
+.settings-section h3 {
+    font-size: 1.3rem;
+    margin-bottom: 1.5rem;
+    color: var(--text-primary);
+    border-bottom: 2px solid var(--border-color);
+    padding-bottom: 0.75rem;
+}
+
+.db-info-card {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.info-row:last-child {
+    border-bottom: none;
+}
+
+.info-label {
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.info-value {
+    color: var(--text-primary);
+    font-family: monospace;
+    font-size: 0.9rem;
+}
+
+.settings-actions {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.settings-actions .btn {
+    flex: 1;
+    min-width: 150px;
+}
+
+.settings-toggle {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 1.25rem;
+}
+
+.toggle-label {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    cursor: pointer;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.toggle-label input[type=checkbox] {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+}
+
+.toggle-description {
+    margin-top: 0.75rem;
+    margin-left: 28px;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+.about-info {
+    color: var(--text-secondary);
+    line-height: 1.8;
+}
+
+.about-info strong {
+    color: var(--text-primary);
+    font-size: 1.1rem;
+}
+
+.btn-danger {
+    background-color: #dc3545;
+    color: white;
+}
+
+.btn-danger:hover {
+    background-color: #c82333;
+}
+
+.summary-card.highlight {
+    background: white;
+    color: var(--text-primary);
+    border: 2px solid var(--primary-color);
+}
+
+.summary-card.highlight h3 {
+    color: var(--text-secondary);
+    opacity: 1;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+}
+
+.summary-card.highlight .value {
+    font-weight: 800;
+    font-size: 2rem;
+    color: var(--primary-color);
+}
+
+.summary-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.settings-section {
+    background: var(--card-bg);
+    border-radius: 12px;
+    padding: 2rem;
+    margin-bottom: 1.5rem;
+    box-shadow: var(--shadow);
+}
+
+.settings-section h3 {
+    font-size: 1.3rem;
+    margin-bottom: 1.5rem;
+    color: var(--text-primary);
+    border-bottom: 2px solid var(--border-color);
+    padding-bottom: 0.75rem;
+}
+
+.db-info-card {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.info-row:last-child {
+    border-bottom: none;
+}
+
+.info-label {
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.info-value {
+    color: var(--text-primary);
+    font-family: monospace;
+    font-size: 0.9rem;
+}
+
+.settings-actions {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.settings-actions .btn {
+    flex: 1;
+    min-width: 150px;
+}
+
+.settings-toggle {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 1.25rem;
+}
+
+.toggle-label {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    cursor: pointer;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.toggle-label input[type=checkbox] {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+}
+
+.toggle-description {
+    margin-top: 0.75rem;
+    margin-left: 28px;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+.about-info {
+    color: var(--text-secondary);
+    line-height: 1.8;
+}
+
+.about-info strong {
+    color: var(--text-primary);
+    font-size: 1.1rem;
+}
+
+.btn-danger {
+    background-color: #dc3545;
+    color: white;
+}
+
+.btn-danger:hover {
+    background-color: #c82333;
+}
+
+.summary-card.highlight {
+    background: white;
+    color: var(--text-primary);
+    border: 2px solid var(--primary-color);
+}
+
+.summary-card.highlight h3 {
+    color: var(--text-secondary);
+    opacity: 1;
+}
+
+.summary-card.highlight .value {
+    font-weight: 800;
+}
+
+.summary-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}

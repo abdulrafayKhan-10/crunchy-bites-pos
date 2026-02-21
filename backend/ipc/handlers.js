@@ -159,7 +159,23 @@ function setupIpcHandlers() {
         }
     });
 
-    // ============ REPORT HANDLERS ============
+    ipcMain.handle('orders:getByRange', async (event, startDate, endDate) => {
+        try {
+            return { success: true, data: orderService.getOrdersByDateRange(startDate, endDate) };
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    });
+
+    ipcMain.handle('orders:delete', async (event, id) => {
+        try {
+            return { success: true, data: orderService.deleteOrder(id) };
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    });
+
+
 
     ipcMain.handle('reports:endOfDay', async (event, date) => {
         try {
@@ -192,6 +208,61 @@ function setupIpcHandlers() {
             return { success: false, error: error.message };
         }
     });
+
+    // ============ EXPENSE HANDLERS ============
+
+    const ExpenseService = require('../services/expenseService');
+    const expenseService = new ExpenseService();
+
+    ipcMain.handle('expenses:add', async (event, data) => {
+        try {
+            return { success: true, data: expenseService.addExpense(data) };
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    });
+
+    ipcMain.handle('expenses:update', async (event, id, data) => {
+        try {
+            return { success: true, data: expenseService.updateExpense(id, data) };
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    });
+
+    ipcMain.handle('expenses:delete', async (event, id) => {
+        try {
+            expenseService.deleteExpense(id);
+            return { success: true };
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    });
+
+    ipcMain.handle('expenses:getByDate', async (event, date) => {
+        try {
+            return { success: true, data: expenseService.getExpensesByDate(date) };
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    });
+
+    ipcMain.handle('expenses:getByRange', async (event, startDate, endDate) => {
+        try {
+            return { success: true, data: expenseService.getExpensesByRange(startDate, endDate) };
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    });
+
+    ipcMain.handle('expenses:getAll', async () => {
+        try {
+            return { success: true, data: expenseService.getAllExpenses() };
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    });
+
 
     // ============ PRINT HANDLERS ============
 

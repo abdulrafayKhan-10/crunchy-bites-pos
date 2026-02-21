@@ -143,7 +143,36 @@ function createTables() {
     )
   `);
 
+  // Expenses table
+  db.run(`
+    CREATE TABLE IF NOT EXISTS expenses (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      description TEXT NOT NULL,
+      amount REAL NOT NULL,
+      quantity INTEGER DEFAULT 1,
+      category TEXT,
+      date DATETIME DEFAULT CURRENT_TIMESTAMP,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
   console.log('All tables created successfully');
+
+  // Run schema upgrades
+  upgradeDatabase();
+}
+
+function upgradeDatabase() {
+  try {
+    // Add unit column to expenses table
+    db.run('ALTER TABLE expenses ADD COLUMN unit TEXT');
+    console.log('Added unit column to expenses table');
+  } catch (error) {
+    // Ignore duplicate column name error (already exists)
+    if (!error.message.includes('duplicate column name')) {
+      console.warn('Migration warning:', error.message);
+    }
+  }
 }
 
 function initializeSampleData() {

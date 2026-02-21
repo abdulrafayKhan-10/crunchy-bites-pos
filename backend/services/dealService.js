@@ -65,30 +65,38 @@ class DealService {
      * @param {Array} items - [{product_id, quantity}]
      */
     createDeal(dealData, items) {
-        const transaction = this.db.transaction(() => {
-            // Insert deal
-            const dealStmt = this.db.prepare(`
-        INSERT INTO deals (name, description, price) 
-        VALUES (?, ?, ?)
-      `);
-            const result = dealStmt.run(dealData.name, dealData.description, dealData.price);
-            const dealId = result.lastInsertRowid;
+        try {
+            console.log('DealService: Creating deal', dealData, items);
+            const transaction = this.db.transaction(() => {
+                // Insert deal
+                const dealStmt = this.db.prepare(`
+            INSERT INTO deals (name, description, price) 
+            VALUES (?, ?, ?)
+          `);
+                const result = dealStmt.run(dealData.name, dealData.description, dealData.price);
+                const dealId = result.lastInsertRowid;
+                console.log('DealService: Inserted deal', dealId);
 
-            // Insert deal items
-            const itemStmt = this.db.prepare(`
-        INSERT INTO deal_items (deal_id, product_id, quantity) 
-        VALUES (?, ?, ?)
-      `);
+                // Insert deal items
+                const itemStmt = this.db.prepare(`
+            INSERT INTO deal_items (deal_id, product_id, quantity) 
+            VALUES (?, ?, ?)
+          `);
 
-            for (const item of items) {
-                itemStmt.run(dealId, item.product_id, item.quantity);
-            }
+                for (const item of items) {
+                    itemStmt.run(dealId, item.product_id, item.quantity);
+                }
+                console.log('DealService: Inserted items');
 
-            return dealId;
-        });
+                return dealId;
+            });
 
-        const dealId = transaction();
-        return this.getDealById(dealId);
+            const dealId = transaction();
+            return this.getDealById(dealId);
+        } catch (error) {
+            console.error('DealService Error:', error);
+            throw error; // Re-throw to be caught by handler
+        }
     }
 
     /**

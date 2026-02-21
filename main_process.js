@@ -9,27 +9,8 @@ const { setupIpcHandlers } = require('./backend/ipc/handlers');
  * Initializes the application, database, and creates the main window
  */
 
-// File logging for debugging
-const logFile = path.join(__dirname, 'electron-debug.log');
-function log(message) {
-    const timestamp = new Date().toISOString();
-    const logMessage = `[${timestamp}] ${message}\n`;
-    console.log(message);
-    try {
-        fs.appendFileSync(logFile, logMessage);
-    } catch (e) {
-        console.error('Failed to write to log file:', e);
-    }
-}
-
-// Clear log file on start
-try {
-    fs.writeFileSync(logFile, `=== Electron Debug Log ===\n`);
-} catch (e) {
-    console.error('Failed to create log file:', e);
-}
-
-log('Electron script loaded');
+// File logging removed
+// const logFile = ...
 
 let mainWindow;
 

@@ -2,7 +2,7 @@
   "name": "crunchy-bites-pos",
   "version": "1.0.0",
   "description": "Offline-first POS system for Crunchy Bites fast-food outlet",
-  "main": "electron.js",
+  "main": "main_process.js",
   "scripts": {
     "start": "node_modules\\.bin\\electron.cmd .",
     "dev": "node_modules\\.bin\\electron.cmd . --dev",
@@ -30,7 +30,10 @@
   },
   "devDependencies": {
     "electron": "^28.2.0",
-    "electron-builder": "^25.1.8"
+    "electron-builder": "^25.1.8",
+    "electron-packager": "^17.1.2",
+    "png-to-ico": "^3.0.1",
+    "to-ico": "^1.1.5"
   },
   "build": {
     "appId": "com.crunchybites.pos",
@@ -41,9 +44,11 @@
     "asar": false,
     "win": {
       "target": [
-        "portable"
+        "nsis"
       ],
-      "icon": "assets/icon.png"
+      "sign": null,
+      "forceCodeSigning": false,
+      "verifyUpdateCodeSignature": false
     },
     "nsis": {
       "oneClick": false,
@@ -51,16 +56,24 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "installerIcon": "assets/icon.png",
-      "uninstallerIcon": "assets/icon.png"
+      "uninstallerIcon": "assets/icon.png",
+      "artifactName": "${productName} Setup ${version}.${ext}"
     },
     "files": [
-      "**/*",
-      "!debug_db.js",
-      "!test-*.js",
-      "!*.log",
-      "!*.txt",
-      "!.gitignore",
-      "!README.md"
+      "main_process.js",
+      "preload.js",
+      "frontend/**/*",
+      "database/**/*",
+      "backend/**/*",
+      "assets/**/*",
+      "node_modules/**/*",
+      "!node_modules/*/{test,tests,testing,doc,docs,example,examples,dist-info,*.md,*.txt,*.png,*.jpg,*.pdf}",
+      "!**/*.log"
+    ],
+    "extraResources": [
+      "database/**/*",
+      "backend/**/*",
+      "assets/**/*"
     ]
   }
 }

@@ -83,18 +83,73 @@ class ReportService {
    * Get sales summary for a date range
    */
   getDateRangeReport(startDate, endDate) {
+    // 1. Overall Summary
     const summary = this.db.prepare(`
       SELECT 
-        DATE(order_date) as date,
         COUNT(*) as total_orders,
-        SUM(total_amount) as total_sales
+        COALESCE(SUM(total_amount), 0) as total_sales
       FROM orders
       WHERE DATE(order_date) BETWEEN DATE(?) AND DATE(?)
-      GROUP BY DATE(order_date)
-      ORDER BY date DESC
+    `).get(startDate, endDate);
+
+    // 2. Product Breakdown
+    const productBreakdown = this.db.prepare(`
+      SELECT 
+        COALESCE(p.name, 'Unknown Product') as product_name,
+        COALESCE(p.category, 'Uncategorized') as category,
+        SUM(oi.quantity) as quantity_sold,
+        SUM(oi.total_price) as total_sales
+      FROM order_items oi
+      LEFT JOIN products p ON oi.product_id = p.id
+      JOIN orders o ON oi.order_id = o.id
+      WHERE DATE(o.order_date) BETWEEN DATE(?) AND DATE(?) AND oi.product_id IS NOT NULL
+      GROUP BY p.id, p.name, p.category
+      ORDER BY total_sales DESC
     `).all(startDate, endDate);
 
-    return summary;
+    // 3. Deal Breakdown
+    const dealBreakdown = this.db.prepare(`
+      SELECT 
+        COALESCE(d.name, 'Unknown Deal') as deal_name,
+        SUM(oi.quantity) as quantity_sold,
+        SUM(oi.total_price) as total_sales
+      FROM order_items oi
+      LEFT JOIN deals d ON oi.deal_id = d.id
+      JOIN orders o ON oi.order_id = o.id
+      WHERE DATE(o.order_date) BETWEEN DATE(?) AND DATE(?) AND oi.deal_id IS NOT NULL
+      GROUP BY d.id, d.name
+      ORDER BY total_sales DESC
+    `).all(startDate, endDate);
+
+    console.log(`Report Debug [${startDate} to ${endDate}]:`);
+    console.log('Summary:', summary);
+    console.log('Products found:', productBreakdown.length);
+    console.log('Deals found:', dealBreakdown.length);
+
+    // 4. Individual Orders List
+    const ordersList = this.db.prepare(`
+      SELECT 
+        orders.id,
+        orders.order_date,
+        orders.total_amount,
+        COALESCE(customers.name, 'Walk-in') as customer_name
+      FROM orders
+      LEFT JOIN customers ON orders.customer_id = customers.id
+      WHERE strftime('%Y-%m-%d', orders.order_date) BETWEEN ? AND ?
+      ORDER BY orders.order_date DESC
+    `).all(startDate, endDate);
+
+    return {
+      startDate,
+      endDate,
+      summary: {
+        total_orders: summary.total_orders,
+        total_sales: summary.total_sales
+      },
+      products: productBreakdown,
+      deals: dealBreakdown,
+      orders: ordersList
+    };
   }
 
   /**
@@ -131,8 +186,13 @@ class ReportService {
       GROUP BY d.id
       ORDER BY total_revenue DESC
       LIMIT ?
+      LIMIT ?
     `).all(limit);
   }
+
+  /**
+   * Get report for date range (Cleaned up duplicate)
+   */
 }
 
 module.exports = ReportService;
