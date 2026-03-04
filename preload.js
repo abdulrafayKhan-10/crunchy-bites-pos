@@ -33,8 +33,7 @@ contextBridge.exposeInMainWorld('api', {
         getToday: () => ipcRenderer.invoke('orders:getToday'),
         getAll: (limit) => ipcRenderer.invoke('orders:getAll', limit),
         getByDate: (date) => ipcRenderer.invoke('orders:getByDate', date),
-        getByRange: (startDate, endDate) => ipcRenderer.invoke('orders:getByRange', startDate, endDate),
-        delete: (id) => ipcRenderer.invoke('orders:delete', id)
+        getByRange: (startDate, endDate) => ipcRenderer.invoke('orders:getByRange', startDate, endDate)
     },
 
     // Report API
@@ -68,6 +67,14 @@ contextBridge.exposeInMainWorld('api', {
         getInfo: () => ipcRenderer.invoke('backup:getInfo'),
         setAutoBackup: (enabled) => ipcRenderer.invoke('backup:setAutoBackup', enabled),
         runAutoBackup: () => ipcRenderer.invoke('backup:runAutoBackup'),
+
+        // Cloud Backup API
+        saveCloudCredentials: (url, key, bucket) => ipcRenderer.invoke('backup:saveCloudCredentials', url, key, bucket),
+        getCloudCredentials: () => ipcRenderer.invoke('backup:getCloudCredentials'),
+        testCloudConnection: () => ipcRenderer.invoke('backup:testCloudConnection'),
+        downloadLatestCloudBackup: () => ipcRenderer.invoke('backup:downloadLatestCloudBackup'),
+        recoverFromCloud: () => ipcRenderer.invoke('backup:recoverFromCloud'),
+
         restartApp: () => ipcRenderer.invoke('app:restart')
     }
 });

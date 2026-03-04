@@ -161,23 +161,6 @@ class OrderService {
     return stmt.all(start, end);
   }
 
-  /**
-   * Delete an order by ID (also removes order items)
-   * @param {number} id - Order ID to delete
-   */
-  deleteOrder(id) {
-    const transaction = this.db.transaction(() => {
-      // Delete order items first (foreign key constraint)
-      this.db.prepare(`DELETE FROM order_items WHERE order_id = ?`).run(id);
-      // Delete the order itself
-      const result = this.db.prepare(`DELETE FROM orders WHERE id = ?`).run(id);
-      if (result.changes === 0) {
-        throw new Error(`Order #${id} not found`);
-      }
-    });
-    transaction();
-    return { deleted: true, id };
-  }
 
   /**
    * Get all orders

@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const archiver = require('archiver');
 const extract = require('extract-zip');
+const CloudBackupService = require('./cloudBackupService');
 
 /**
  * Backup Service
@@ -15,6 +16,8 @@ class BackupService {
         this.backupDir = path.join(app.getPath('userData'), 'backups');
         this.autoBackupEnabled = true; // Default enabled
         this.maxAutoBackups = 7; // Keep last 7 auto-backups
+
+        this.cloudService = new CloudBackupService();
 
         // Ensure backup directory exists
         if (!fs.existsSync(this.backupDir)) {
@@ -91,6 +94,27 @@ class BackupService {
                 : 25; // Force backup if no previous backup
 
             if (hoursSinceLastBackup < 24) {
+                // Trigger cloud upload for the existing backup if configured
+                if (this.cloudService && this.cloudService.getCredentials().isConfigured) {
+                    try {
+                        const files = fs.readdirSync(this.backupDir)
+                            .filter(f => f.startsWith('auto-backup-') && f.endsWith('.zip'))
+                            .sort((a, b) => {
+                                const statA = fs.statSync(path.join(this.backupDir, a));
+                                const statB = fs.statSync(path.join(this.backupDir, b));
+                                return statB.mtime - statA.mtime;
+                            });
+
+                        if (files.length > 0) {
+                            const latestLocalBackup = path.join(this.backupDir, files[0]);
+                            console.log('Valid cloud config found. Uploading existing daily backup to cloud...', latestLocalBackup);
+                            this.cloudService.uploadBackup(latestLocalBackup);
+                        }
+                    } catch (err) {
+                        console.error('Failed to trigger cloud sync for existing backup:', err);
+                    }
+                }
+
                 return {
                     success: true,
                     skipped: true,
@@ -108,8 +132,14 @@ class BackupService {
             const result = await this.createManualBackup(backupPath);
 
             if (result.success) {
-                // Clean up old auto-backups
+                // Clean up old auto-backups locally
                 this.cleanupOldAutoBackups();
+
+                // Trigger cloud upload automatically
+                if (this.cloudService && this.cloudService.getCredentials().isConfigured) {
+                    console.log('Valid cloud config found. Attempting autonomous cloud backup...');
+                    this.cloudService.uploadBackup(backupPath);
+                }
 
                 return {
                     success: true,
@@ -267,7 +297,8 @@ class BackupService {
                 sizeFormatted: this.formatBytes(stats.size),
                 lastModified: stats.mtime,
                 lastAutoBackup: lastBackup,
-                autoBackupEnabled: this.autoBackupEnabled
+                autoBackupEnabled: this.autoBackupEnabled,
+                cloudConfigured: this.cloudService.getCredentials().isConfigured
             };
         } catch (error) {
             return {

@@ -443,7 +443,6 @@ function renderOrdersTable(orders) {
       <td>Rs. ${order.total_amount.toFixed(2)}</td>
       <td>
         <button class="btn btn-sm btn-secondary" onclick="reprintReceipt(${order.id})">Reprint</button>
-        <button class="btn btn-sm btn-danger" onclick="deleteOrder(${order.id})">Cancel</button>
       </td>
     </tr>
   `).join('');
@@ -504,10 +503,10 @@ function removeFromCart(index) {
     renderCart();
 }
 
-function clearCart() {
+async function clearCart() {
     if (cart.length === 0) return;
 
-    if (confirm('Clear all items from cart?')) {
+    if (await showConfirm('Clear all items from cart?')) {
         cart = [];
         renderCart();
         showToast('Cart cleared', 'success');
@@ -608,30 +607,6 @@ window.reprintReceipt = async function (orderId) {
     }
 };
 
-// ============ ORDER CANCELLATION ============
-window.deleteOrder = async function (orderId) {
-    if (!confirm(`Are you sure you want to cancel/delete Order #${orderId}? This action cannot be undone.`)) return;
-
-    try {
-        const result = await window.api.orders.delete(orderId);
-        if (result.success) {
-            showToast(`Order #${orderId} has been cancelled.`, 'success');
-            // Refresh the orders table using the current filter
-            const startDate = document.getElementById('orderStartDate').value;
-            const endDate = document.getElementById('orderEndDate').value;
-            if (startDate && endDate) {
-                filterOrders();
-            } else {
-                loadAllOrders();
-            }
-        } else {
-            showToast('Error cancelling order: ' + result.error, 'error');
-        }
-    } catch (error) {
-        console.error('Error cancelling order:', error);
-        showToast('Failed to cancel order', 'error');
-    }
-};
 
 // ============ PRODUCT MANAGEMENT ============
 function openProductModal(productId = null) {
@@ -640,6 +615,7 @@ function openProductModal(productId = null) {
     const title = document.getElementById('productModalTitle');
 
     form.reset();
+    document.getElementById('productId').value = ''; // Ensure hidden ID is cleared
 
     // Populate category datalist uniquely
     const categories = [...new Set(products.map(p => p.category))].filter(Boolean);
@@ -671,27 +647,37 @@ function openProductModal(productId = null) {
 async function saveProduct(e) {
     e.preventDefault();
 
-    const id = document.getElementById('productId').value;
-    const data = {
-        name: document.getElementById('productName').value,
-        category: document.getElementById('productCategory').value,
-        price: parseFloat(document.getElementById('productPrice').value)
-    };
+    const submitBtn = document.querySelector('#productForm button[type="submit"]');
+    if (submitBtn) submitBtn.disabled = true;
 
-    let result;
-    if (id) {
-        result = await window.api.products.update(parseInt(id), data);
-    } else {
-        result = await window.api.products.create(data);
-    }
+    try {
+        const id = document.getElementById('productId').value;
+        const data = {
+            name: document.getElementById('productName').value,
+            category: document.getElementById('productCategory').value,
+            price: parseFloat(document.getElementById('productPrice').value)
+        };
 
-    if (result.success) {
-        showToast('Product saved successfully', 'success');
-        closeModals();
-        await loadProducts();
-        await loadProductsForOrder();
-    } else {
-        showToast('Error saving product: ' + result.error, 'error');
+        let result;
+        if (id) {
+            result = await window.api.products.update(parseInt(id), data);
+        } else {
+            result = await window.api.products.create(data);
+        }
+
+        if (result.success) {
+            showToast('Product saved successfully', 'success');
+            closeModals();
+            await loadProducts();
+            await loadProductsForOrder();
+        } else {
+            showToast('Error saving product: ' + result.error, 'error');
+        }
+    } catch (error) {
+        console.error('Error saving product:', error);
+        showToast('System error saving product', 'error');
+    } finally {
+        if (submitBtn) submitBtn.disabled = false;
     }
 }
 
@@ -700,7 +686,7 @@ function editProduct(id) {
 }
 
 async function deleteProduct(id) {
-    if (!confirm('Are you sure you want to delete this product?')) return;
+    if (!await showConfirm('Are you sure you want to delete this product?')) return;
 
     const result = await window.api.products.delete(id);
 
@@ -720,6 +706,7 @@ function openDealModal(dealId = null) {
     const title = document.getElementById('dealModalTitle');
 
     form.reset();
+    document.getElementById('dealId').value = ''; // Ensure hidden ID is cleared
     document.getElementById('dealItemsList').innerHTML = '';
 
     if (dealId) {
@@ -748,7 +735,6 @@ function openDealModal(dealId = null) {
         const nameInput = document.getElementById('dealName');
         if (nameInput) {
             nameInput.focus();
-            nameInput.select(); // Also select text if any
         }
     }, 100);
 }
@@ -778,35 +764,38 @@ async function saveDeal(e) {
     e.preventDefault();
     console.log('saveDeal called');
 
-    const id = document.getElementById('dealId').value;
-    const dealData = {
-        name: document.getElementById('dealName').value,
-        description: document.getElementById('dealDescription').value,
-        price: parseFloat(document.getElementById('dealPrice').value)
-    };
-    console.log('Deal Data:', dealData);
-
-    // Collect items
-    const itemRows = document.querySelectorAll('.deal-item-row');
-    const items = Array.from(itemRows).map(row => ({
-        product_id: parseInt(row.querySelector('.deal-item-product').value),
-        quantity: parseInt(row.querySelector('.deal-item-quantity').value)
-    }));
-    console.log('Deal Items:', items);
-
-    // Validate items
-    if (!items || items.length === 0) {
-        showToast('Please add at least one product to the deal', 'warning');
-        return;
-    }
-
-    if (items.some(i => !i.product_id || isNaN(i.product_id) || i.quantity <= 0)) {
-        console.warn('Validation failed: Invalid product IDs or quantity', items);
-        showToast('Invalid deal items. Please check selections.', 'warning');
-        return;
-    }
+    const submitBtn = document.querySelector('#dealForm button[type="submit"]');
+    if (submitBtn) submitBtn.disabled = true;
 
     try {
+        const id = document.getElementById('dealId').value;
+        const dealData = {
+            name: document.getElementById('dealName').value,
+            description: document.getElementById('dealDescription').value,
+            price: parseFloat(document.getElementById('dealPrice').value)
+        };
+        console.log('Deal Data:', dealData);
+
+        // Collect items
+        const itemRows = document.querySelectorAll('.deal-item-row');
+        const items = Array.from(itemRows).map(row => ({
+            product_id: parseInt(row.querySelector('.deal-item-product').value),
+            quantity: parseInt(row.querySelector('.deal-item-quantity').value)
+        }));
+        console.log('Deal Items:', items);
+
+        // Validate items
+        if (!items || items.length === 0) {
+            showToast('Please add at least one product to the deal', 'warning');
+            return;
+        }
+
+        if (items.some(i => !i.product_id || isNaN(i.product_id) || i.quantity <= 0)) {
+            console.warn('Validation failed: Invalid product IDs or quantity', items);
+            showToast('Invalid deal items. Please check selections.', 'warning');
+            return;
+        }
+
         let result;
         if (id) {
             console.log('Updating deal:', id);
@@ -829,6 +818,8 @@ async function saveDeal(e) {
     } catch (error) {
         console.error('saveDeal unexpected error:', error);
         showToast('System error saving deal', 'error');
+    } finally {
+        if (submitBtn) submitBtn.disabled = false;
     }
 }
 
@@ -837,7 +828,7 @@ function editDeal(id) {
 }
 
 async function deleteDeal(id) {
-    if (!confirm('Are you sure you want to delete this deal?')) return;
+    if (!await showConfirm('Are you sure you want to delete this deal?')) return;
 
     const result = await window.api.deals.delete(id);
 
@@ -1303,12 +1294,41 @@ function renderReportSafe(data) {
 }
 
 // ============ UTILITIES ============
+function showConfirm(message, title = 'Confirm Action') {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('confirmModal');
+        document.getElementById('confirmTitle').textContent = title;
+        document.getElementById('confirmMessage').textContent = message;
+
+        const okBtn = document.getElementById('confirmOkBtn');
+        const cancelBtn = document.getElementById('confirmCancelBtn');
+
+        const cleanup = () => {
+            modal.classList.remove('active');
+            okBtn.removeEventListener('click', onOk);
+            cancelBtn.removeEventListener('click', onCancel);
+        };
+
+        const onOk = () => { cleanup(); resolve(true); };
+        const onCancel = () => { cleanup(); resolve(false); };
+
+        okBtn.addEventListener('click', onOk);
+        cancelBtn.addEventListener('click', onCancel);
+
+        modal.classList.add('active');
+    });
+}
+
 function closeModals() {
     document.querySelectorAll('.modal').forEach(modal => {
         modal.classList.remove('active');
         // Reset forms
         const form = modal.querySelector('form');
-        if (form) form.reset();
+        if (form) {
+            form.reset();
+            // Ensure hidden inputs are also cleared
+            form.querySelectorAll('input[type="hidden"]').forEach(input => input.value = '');
+        }
     });
 }
 

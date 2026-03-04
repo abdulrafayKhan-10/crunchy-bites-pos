@@ -167,16 +167,6 @@ function setupIpcHandlers() {
         }
     });
 
-    ipcMain.handle('orders:delete', async (event, id) => {
-        try {
-            return { success: true, data: orderService.deleteOrder(id) };
-        } catch (error) {
-            return { success: false, error: error.message };
-        }
-    });
-
-
-
     ipcMain.handle('reports:endOfDay', async (event, date) => {
         try {
             return { success: true, data: reportService.getEndOfDayReport(date) };
@@ -303,8 +293,10 @@ function setupIpcHandlers() {
     // ============ BACKUP HANDLERS ============
 
     const BackupService = require('../services/backupService');
+    const CloudBackupService = require('../services/cloudBackupService');
     const { dialog } = require('electron');
     const backupService = new BackupService();
+    const cloudBackupService = new CloudBackupService();
 
     ipcMain.handle('backup:create', async () => {
         try {
@@ -371,6 +363,49 @@ function setupIpcHandlers() {
     ipcMain.handle('backup:runAutoBackup', async () => {
         try {
             return await backupService.createAutoBackup();
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    });
+
+    ipcMain.handle('backup:saveCloudCredentials', async (event, url, key, bucket) => {
+        return cloudBackupService.initClient(url, key, bucket);
+    });
+
+    ipcMain.handle('backup:getCloudCredentials', async () => {
+        return { success: true, data: cloudBackupService.getCredentials() };
+    });
+
+    ipcMain.handle('backup:testCloudConnection', async () => {
+        return await cloudBackupService.testConnection();
+    });
+
+    ipcMain.handle('backup:downloadLatestCloudBackup', async () => {
+        try {
+            const downloadResult = await cloudBackupService.downloadLatestBackup();
+            if (!downloadResult.success) return downloadResult;
+
+            // Restore from the downloaded temp ZIP
+            return await backupService.restoreBackup(downloadResult.filePath);
+        } catch (error) {
+            console.error('Download and restore failed:', error);
+            return { success: false, error: error.message };
+        }
+    });
+
+    ipcMain.handle('backup:recoverFromCloud', async () => {
+        try {
+            // Only recover if DB is practically empty
+            const dbSize = require('fs').statSync(backupService.dbPath).size;
+            // Less than 50KB usually means empty/newly initialized DB
+            if (dbSize > 50000) {
+                return { success: false, reason: 'Local database is not empty. Cannot auto-recover.' };
+            }
+
+            const downloadResult = await cloudBackupService.downloadLatestBackup();
+            if (!downloadResult.success) return downloadResult;
+
+            return await backupService.restoreBackup(downloadResult.filePath);
         } catch (error) {
             return { success: false, error: error.message };
         }

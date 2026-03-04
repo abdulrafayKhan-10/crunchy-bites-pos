@@ -19,9 +19,10 @@
   "author": "Crunchy Bites",
   "license": "MIT",
   "dependencies": {
+    "@supabase/supabase-js": "^2.98.0",
     "archiver": "^7.0.1",
     "archiver-utils": "^5.0.2",
-    "electron-store": "^8.1.0",
+    "electron-store": "^8.2.0",
     "extract-zip": "^2.0.1",
     "iconv-lite": "^0.7.2",
     "node-thermal-printer": "^4.6.0",
@@ -55,8 +56,8 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "installerIcon": "assets/icon.png",
-      "uninstallerIcon": "assets/icon.png",
+      "installerIcon": "assets/icon.ico",
+      "uninstallerIcon": "assets/icon.ico",
       "artifactName": "${productName} Setup ${version}.${ext}"
     },
     "files": [

@@ -268,24 +268,48 @@
             </button>
           </div>
 
-          <div class="settings-toggle">
-            <label class="toggle-label">
-              <input type="checkbox" id="autoBackupToggle" checked>
-              <span>Enable Auto-Backup (Daily)</span>
-            </label>
-            <p class="toggle-description">Automatically backs up your database once per day when the app starts. Keeps
-              the last 7 backups.</p>
+            <div class="settings-toggle">
+              <label class="toggle-label">
+                <input type="checkbox" id="autoBackupToggle" checked>
+                <span>Enable Auto-Backup (Daily)</span>
+              </label>
+              <p class="toggle-description">Automatically backs up your database once per day when the app starts. Keeps
+                the last 7 backups.</p>
+            </div>
           </div>
-        </div>
 
-        <div class="settings-section">
-          <h3>About</h3>
-          <div class="about-info">
-            <p><strong>Crunchy Bites POS</strong></p>
-            <p>Version 1.0.0</p>
-            <p>Offline-first Point of Sale System</p>
+          <div class="settings-section">
+            <h3>Cloud Backup (Supabase)</h3>
+            <div class="db-info-card" style="margin-bottom: 1rem;">
+              <p class="toggle-description mb-2">Configure off-site cloud backups to automatically push your data and recover from hardware loss.</p>
+              <div class="form-group mb-2">
+                <label>Supabase Project URL</label>
+                <input type="text" id="supabaseUrl" placeholder="https://xxxx.supabase.co">
+              </div>
+              <div class="form-group mb-2">
+                <label>Supabase API Key (anon/service)</label>
+                <input type="password" id="supabaseKey" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
+              </div>
+              <div class="form-group mb-2">
+                <label>Storage Bucket Name</label>
+                <input type="text" id="supabaseBucket" placeholder="pos-backups">
+              </div>
+              <div class="form-row" style="margin-top: 1rem; display: flex; gap: 1rem;">
+                <button class="btn btn-primary" id="saveCloudBtn">Save & Connect</button>
+                <button class="btn btn-secondary" id="restoreCloudBtn" style="display:none;">☁️ Restore Latest Download</button>
+              </div>
+              <p id="cloudStatus" class="info-value mt-2" style="font-size: 0.85em; margin-top: 0.5rem;"></p>
+            </div>
           </div>
-        </div>
+
+          <div class="settings-section">
+            <h3>About</h3>
+            <div class="about-info">
+              <p><strong>Crunchy Bites POS</strong></p>
+              <p>Version 1.0.0</p>
+              <p>Offline-first Point of Sale System</p>
+            </div>
+          </div>
       </div>
     </div>
   </main>
@@ -457,6 +481,21 @@
           <button type="submit" class="btn btn-primary">Save Changes</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <div id="confirmModal" class="modal" style="z-index: 2000;">
+    <div class="modal-content" style="max-width: 400px; text-align: center;">
+      <div class="modal-header" style="justify-content: center; border-bottom: none; padding-bottom: 0;">
+        <h3 id="confirmTitle" style="font-size: 1.3rem;">Confirm</h3>
+      </div>
+      <div style="padding: 1.5rem;">
+        <p id="confirmMessage" style="color: var(--text-secondary); margin-bottom: 1.5rem;"></p>
+        <div style="display: flex; gap: 1rem; justify-content: center;">
+          <button id="confirmCancelBtn" class="btn btn-secondary">Cancel</button>
+          <button id="confirmOkBtn" class="btn btn-danger">Confirm</button>
+        </div>
+      </div>
     </div>
   </div>
 
