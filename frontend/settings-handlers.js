@@ -178,3 +178,35 @@ document.getElementById('restoreCloudBtn')?.addEventListener('click', async () =
         btn.disabled = false;
     }
 });
+
+// ============ CHANGE PASSWORD ============
+
+document.getElementById('changePasswordForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const current = document.getElementById('currentPassword').value;
+    const newPass = document.getElementById('newPassword').value;
+    const confirm = document.getElementById('confirmNewPassword').value;
+
+    if (newPass !== confirm) {
+        showToast('New passwords do not match', 'error');
+        return;
+    }
+
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+
+    try {
+        const result = await window.api.auth.changePassword(current, newPass);
+        if (result.success) {
+            showToast('Password changed successfully!', 'success');
+            e.target.reset();
+        } else {
+            showToast(result.error || 'Failed to change password', 'error');
+        }
+    } catch (err) {
+        showToast('Error changing password', 'error');
+    } finally {
+        submitBtn.disabled = false;
+    }
+});

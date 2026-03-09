@@ -418,6 +418,28 @@ function setupIpcHandlers() {
         app.exit(0);
     });
 
+    // ============ AUTH HANDLERS ============
+
+    const SettingsService = require('../services/settingsService');
+    const settingsService = new SettingsService();
+
+    ipcMain.handle('auth:verify', async (event, password) => {
+        try {
+            const valid = settingsService.verifyPassword(password);
+            return { success: valid };
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    });
+
+    ipcMain.handle('auth:changePassword', async (event, oldPassword, newPassword) => {
+        try {
+            return settingsService.changePassword(oldPassword, newPassword);
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    });
+
     console.log('IPC handlers registered successfully');
 }
 

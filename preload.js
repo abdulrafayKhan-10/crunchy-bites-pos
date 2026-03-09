@@ -60,6 +60,12 @@ contextBridge.exposeInMainWorld('api', {
         getAll: () => ipcRenderer.invoke('expenses:getAll')
     },
 
+    // Auth API
+    auth: {
+        verify: (password) => ipcRenderer.invoke('auth:verify', password),
+        changePassword: (oldPassword, newPassword) => ipcRenderer.invoke('auth:changePassword', oldPassword, newPassword)
+    },
+
     // Backup API
     backup: {
         create: () => ipcRenderer.invoke('backup:create'),

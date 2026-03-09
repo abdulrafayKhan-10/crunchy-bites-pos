@@ -99,6 +99,31 @@ body {
   font-size: 1.2rem;
 }
 
+/* Auth nav buttons */
+.nav-auth-spacer {
+  flex: 1;
+}
+
+.nav-unlock-btn {
+  color: var(--warning-color) !important;
+  border: 1.5px solid var(--warning-color);
+}
+
+.nav-unlock-btn:hover {
+  background: var(--warning-color) !important;
+  color: white !important;
+}
+
+.nav-lock-btn {
+  color: var(--danger-color) !important;
+  border: 1.5px solid var(--danger-color);
+}
+
+.nav-lock-btn:hover {
+  background: var(--danger-color) !important;
+  color: white !important;
+}
+
 /* Main Content */
 .app-main {
   padding: 2rem;
@@ -209,6 +234,7 @@ body {
 .form-group input[type="number"],
 .form-group input[type="tel"],
 .form-group input[type="date"],
+.form-group input[type="password"],
 .form-group select,
 .form-group textarea {
   width: 100%;
@@ -219,7 +245,11 @@ body {
   transition: border-color 0.3s ease;
 }
 
-.form-group input:focus,
+.form-group input[type="text"]:focus,
+.form-group input[type="number"]:focus,
+.form-group input[type="tel"]:focus,
+.form-group input[type="date"]:focus,
+.form-group input[type="password"]:focus,
 .form-group select:focus,
 .form-group textarea:focus {
   outline: none;

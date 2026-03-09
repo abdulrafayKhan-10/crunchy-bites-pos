@@ -10,6 +10,7 @@ let deals = [];
 let currentView = 'new-order';
 let currentTab = 'products';
 let currentCategory = 'all';
+let isAdminUnlocked = false;
 
 // Immediate log to verify renderer loading
 if (window.api && window.api.logger) {
@@ -23,12 +24,91 @@ document.addEventListener('DOMContentLoaded', () => {
     initializeApp();
     setupEventListeners();
     loadInitialData();
+    initAuthState();
 });
 
 function initializeApp() {
     // Set current date
     updateDateTime();
     setInterval(updateDateTime, 60000); // Update every minute
+}
+
+// ============ AUTH / LOCK ============
+
+function initAuthState() {
+    // Start locked: hide admin nav buttons
+    document.querySelectorAll('.nav-btn[data-admin]').forEach(btn => {
+        btn.style.display = 'none';
+    });
+    document.getElementById('unlockBtn').style.display = 'flex';
+    document.getElementById('lockBtn').style.display = 'none';
+    isAdminUnlocked = false;
+}
+
+function lockApp() {
+    isAdminUnlocked = false;
+    document.querySelectorAll('.nav-btn[data-admin]').forEach(btn => {
+        btn.style.display = 'none';
+    });
+    document.getElementById('unlockBtn').style.display = 'flex';
+    document.getElementById('lockBtn').style.display = 'none';
+
+    // Navigate back to New Order if currently on an admin-only view
+    const adminViews = ['products', 'deals', 'reports', 'expenses', 'orders', 'settings'];
+    if (adminViews.includes(currentView)) {
+        switchView('new-order');
+    }
+    showToast('App locked', 'success');
+}
+
+function unlockApp() {
+    isAdminUnlocked = true;
+    document.querySelectorAll('.nav-btn[data-admin]').forEach(btn => {
+        btn.style.display = 'flex';
+    });
+    document.getElementById('unlockBtn').style.display = 'none';
+    document.getElementById('lockBtn').style.display = 'flex';
+    showToast('Admin access granted', 'success');
+}
+
+function openAuthModal() {
+    const modal = document.getElementById('authModal');
+    document.getElementById('authPasswordInput').value = '';
+    document.getElementById('authError').textContent = '';
+    modal.classList.add('active');
+    setTimeout(() => document.getElementById('authPasswordInput').focus(), 80);
+}
+
+function closeAuthModal() {
+    document.getElementById('authModal').classList.remove('active');
+    document.getElementById('authPasswordInput').value = '';
+    document.getElementById('authError').textContent = '';
+}
+
+async function handleAuthSubmit(e) {
+    e.preventDefault();
+    const password = document.getElementById('authPasswordInput').value;
+    const errorEl = document.getElementById('authError');
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+
+    submitBtn.disabled = true;
+    errorEl.textContent = '';
+
+    try {
+        const result = await window.api.auth.verify(password);
+        if (result.success) {
+            closeAuthModal();
+            unlockApp();
+        } else {
+            errorEl.textContent = 'Incorrect password. Please try again.';
+            document.getElementById('authPasswordInput').value = '';
+            document.getElementById('authPasswordInput').focus();
+        }
+    } catch (err) {
+        errorEl.textContent = 'Error verifying password.';
+    } finally {
+        submitBtn.disabled = false;
+    }
 }
 
 function updateDateTime() {
@@ -46,8 +126,19 @@ function updateDateTime() {
 // ============ EVENT LISTENERS ============
 function setupEventListeners() {
     // Navigation
-    document.querySelectorAll('.nav-btn').forEach(btn => {
+    document.querySelectorAll('.nav-btn[data-view]').forEach(btn => {
         btn.addEventListener('click', () => switchView(btn.dataset.view));
+    });
+
+    // Auth buttons
+    document.getElementById('unlockBtn').addEventListener('click', openAuthModal);
+    document.getElementById('lockBtn').addEventListener('click', lockApp);
+    document.getElementById('authCancelBtn').addEventListener('click', closeAuthModal);
+    document.getElementById('authForm').addEventListener('submit', handleAuthSubmit);
+
+    // Close auth modal on backdrop click
+    document.getElementById('authModal').addEventListener('click', (e) => {
+        if (e.target === document.getElementById('authModal')) closeAuthModal();
     });
 
     // Tabs

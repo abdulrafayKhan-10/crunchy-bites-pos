@@ -25,29 +25,39 @@
       <span class="nav-icon">🛒</span>
       New Order
     </button>
-    <button class="nav-btn" data-view="products">
+    <button class="nav-btn" data-view="products" data-admin="true">
       <span class="nav-icon">🍔</span>
       Products
     </button>
-    <button class="nav-btn" data-view="deals">
+    <button class="nav-btn" data-view="deals" data-admin="true">
       <span class="nav-icon">🎁</span>
       Deals
     </button>
-    <button class="nav-btn" data-view="reports">
+    <button class="nav-btn" data-view="reports" data-admin="true">
       <span class="nav-icon">📊</span>
       Reports
     </button>
-    <button class="nav-btn" data-view="expenses">
+    <button class="nav-btn" data-view="expenses" data-admin="true">
       <span class="nav-icon">💸</span>
       Expenses
     </button>
-    <button class="nav-btn" data-view="orders">
+    <button class="nav-btn" data-view="orders" data-admin="true">
       <span class="nav-icon">📋</span>
       Orders
     </button>
-    <button class="nav-btn" data-view="settings">
+    <button class="nav-btn" data-view="settings" data-admin="true">
       <span class="nav-icon">⚙️</span>
       Settings
+    </button>
+    <!-- Auth buttons -->
+    <div class="nav-auth-spacer"></div>
+    <button class="nav-btn nav-unlock-btn" id="unlockBtn" title="Admin Login">
+      <span class="nav-icon">🔐</span>
+      Admin
+    </button>
+    <button class="nav-btn nav-lock-btn" id="lockBtn" style="display:none" title="Lock App">
+      <span class="nav-icon">🔒</span>
+      Lock
     </button>
   </nav>
 
@@ -303,6 +313,28 @@
           </div>
 
           <div class="settings-section">
+            <h3>Admin Password</h3>
+            <div class="db-info-card">
+              <p class="toggle-description" style="margin-bottom: 1rem;">Change the password required to access admin features.</p>
+              <form id="changePasswordForm">
+                <div class="form-group">
+                  <label>Current Password</label>
+                  <input type="password" id="currentPassword" placeholder="Enter current password" required>
+                </div>
+                <div class="form-group">
+                  <label>New Password</label>
+                  <input type="password" id="newPassword" placeholder="Enter new password (min 4 chars)" required minlength="4">
+                </div>
+                <div class="form-group">
+                  <label>Confirm New Password</label>
+                  <input type="password" id="confirmNewPassword" placeholder="Repeat new password" required minlength="4">
+                </div>
+                <button type="submit" class="btn btn-primary">&#128274; Update Password</button>
+              </form>
+            </div>
+          </div>
+
+          <div class="settings-section">
             <h3>About</h3>
             <div class="about-info">
               <p><strong>Crunchy Bites POS</strong></p>
@@ -495,6 +527,29 @@
           <button id="confirmCancelBtn" class="btn btn-secondary">Cancel</button>
           <button id="confirmOkBtn" class="btn btn-danger">Confirm</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Auth Modal -->
+  <div id="authModal" class="modal" style="z-index: 3000;">
+    <div class="modal-content" style="max-width: 380px;">
+      <div class="modal-header">
+        <h3>&#128274; Admin Login</h3>
+      </div>
+      <div style="padding: 1.5rem;">
+        <p style="color: var(--text-secondary); margin-bottom: 1.2rem; font-size: 0.95rem;">Enter the admin password to unlock all features.</p>
+        <form id="authForm">
+          <div class="form-group">
+            <label>Password</label>
+            <input type="password" id="authPasswordInput" placeholder="Enter password" required autocomplete="current-password">
+          </div>
+          <p id="authError" style="color: var(--danger-color); font-size: 0.88rem; min-height: 1.2em; margin-bottom: 0.5rem;"></p>
+          <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1rem;">
+            <button type="button" class="btn btn-secondary" id="authCancelBtn">Cancel</button>
+            <button type="submit" class="btn btn-primary">Unlock</button>
+          </div>
+        </form>
       </div>
     </div>
   </div>
