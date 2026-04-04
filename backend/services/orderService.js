@@ -1,4 +1,42 @@
 const DbHelper = require('../../database/dbHelper');
+const SettingsService = require('./settingsService');
+
+function getBusinessDateSql(alias, businessDayStartHour) {
+  return `
+    COALESCE(
+      ${alias}.business_date,
+      CASE
+        WHEN CAST(strftime('%H', ${alias}.order_date) AS INTEGER) < ${businessDayStartHour} THEN DATE(${alias}.order_date, '-1 day')
+        ELSE DATE(${alias}.order_date)
+      END
+    )
+  `;
+}
+
+function toSqlDate(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function toSqlDateTime(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hour = String(date.getHours()).padStart(2, '0');
+  const minute = String(date.getMinutes()).padStart(2, '0');
+  const second = String(date.getSeconds()).padStart(2, '0');
+  return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
+}
+
+function toBusinessDate(date, businessDayStartHour) {
+  const businessDate = new Date(date);
+  if (businessDate.getHours() < businessDayStartHour) {
+    businessDate.setDate(businessDate.getDate() - 1);
+  }
+  return toSqlDate(businessDate);
+}
 
 /**
  * Order Service
@@ -8,6 +46,11 @@ const DbHelper = require('../../database/dbHelper');
 class OrderService {
   constructor() {
     this.db = new DbHelper();
+    this.settingsService = new SettingsService();
+  }
+
+  getBusinessDayStartHour() {
+    return this.settingsService.getBusinessDayStartHour();
   }
 
   /**
@@ -37,15 +80,21 @@ class OrderService {
       const totalAmount = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
       // Create order
+      const businessDayStartHour = this.getBusinessDayStartHour();
+      const now = new Date();
+      const orderDate = toSqlDateTime(now);
+      const businessDate = toBusinessDate(now, businessDayStartHour);
+
       const orderStmt = this.db.prepare(`
-        INSERT INTO orders (customer_id, total_amount, is_walk_in, order_date) 
-        VALUES (?, ?, ?, ?)
+        INSERT INTO orders (customer_id, total_amount, is_walk_in, order_date, business_date) 
+        VALUES (?, ?, ?, ?, ?)
       `);
       const orderResult = orderStmt.run(
         customerId,
         totalAmount,
         customerId ? 0 : 1,
-        new Date(Date.now() + (5 * 3600000)).toISOString().replace('T', ' ').substring(0, 19) // Store Local PKT Time
+        orderDate,
+        businessDate
       );
       const orderId = orderResult.lastInsertRowid;
 
@@ -114,29 +163,34 @@ class OrderService {
    * Get all orders for today
    */
   getTodayOrders() {
+    const businessDayStartHour = this.getBusinessDayStartHour();
+    const todayBusinessDate = toBusinessDate(new Date(), businessDayStartHour);
+    const businessDateSql = getBusinessDateSql('o', businessDayStartHour);
     const stmt = this.db.prepare(`
       SELECT 
         o.*,
         c.name as customer_name
       FROM orders o
       LEFT JOIN customers c ON o.customer_id = c.id
-      WHERE DATE(order_date) = DATE('now', 'localtime')
+      WHERE ${businessDateSql} = DATE(?)
       ORDER BY o.order_date DESC
     `);
-    return stmt.all();
+    return stmt.all(todayBusinessDate);
   }
 
   /**
    * Get orders by date
    */
   getOrdersByDate(date) {
+    const businessDayStartHour = this.getBusinessDayStartHour();
+    const businessDateSql = getBusinessDateSql('o', businessDayStartHour);
     const stmt = this.db.prepare(`
       SELECT 
         o.*,
         c.name as customer_name
       FROM orders o
       LEFT JOIN customers c ON o.customer_id = c.id
-      WHERE DATE(o.order_date) = DATE(?)
+      WHERE ${businessDateSql} = DATE(?)
       ORDER BY o.order_date DESC
     `);
     return stmt.all(date);
@@ -146,19 +200,18 @@ class OrderService {
    * Get orders by date range
    */
   getOrdersByDateRange(startDate, endDate) {
-    const start = new Date(startDate).toISOString().split('T')[0];
-    const end = new Date(endDate).toISOString().split('T')[0];
-
+    const businessDayStartHour = this.getBusinessDayStartHour();
+    const businessDateSql = getBusinessDateSql('o', businessDayStartHour);
     const stmt = this.db.prepare(`
       SELECT 
         o.*,
         c.name as customer_name
       FROM orders o
       LEFT JOIN customers c ON o.customer_id = c.id
-      WHERE DATE(o.order_date) BETWEEN ? AND ?
+      WHERE ${businessDateSql} BETWEEN DATE(?) AND DATE(?)
       ORDER BY o.order_date DESC
     `);
-    return stmt.all(start, end);
+    return stmt.all(startDate, endDate);
   }
 
 

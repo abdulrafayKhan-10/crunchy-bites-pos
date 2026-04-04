@@ -18,6 +18,19 @@ async function loadDatabaseInfo() {
 
             document.getElementById('autoBackupToggle').checked = result.autoBackupEnabled;
 
+            // Load business-day cutoff config
+            const businessDayConfig = await window.api.settings.getBusinessDayConfig();
+            if (businessDayConfig.success) {
+                const hour = businessDayConfig.data.businessDayStartHour;
+                const input = document.getElementById('businessDayStartHour');
+                const infoText = document.getElementById('businessDayInfoText');
+
+                if (input) input.value = hour;
+                if (infoText) {
+                    infoText.textContent = `Sales before ${String(hour).padStart(2, '0')}:00 are counted in the previous business date.`;
+                }
+            }
+
             // Load Cloud Config
             const cloudConfig = await window.api.backup.getCloudCredentials();
             if (cloudConfig.success && cloudConfig.data.isConfigured) {
@@ -105,10 +118,59 @@ async function toggleAutoBackup() {
     }
 }
 
+async function saveBusinessDayStartHour() {
+    const input = document.getElementById('businessDayStartHour');
+    const infoText = document.getElementById('businessDayInfoText');
+
+    if (!input) return;
+
+    const hour = Number(input.value);
+
+    if (!Number.isInteger(hour) || hour < 0 || hour > 23) {
+        showToast('Business day start hour must be between 0 and 23', 'error');
+        return;
+    }
+
+    try {
+        const result = await window.api.settings.setBusinessDayStartHour(hour);
+
+        if (!result.success) {
+            showToast(result.error || 'Failed to save business day settings', 'error');
+            return;
+        }
+
+        if (infoText) {
+            infoText.textContent = `Sales before ${String(hour).padStart(2, '0')}:00 are counted in the previous business date.`;
+        }
+
+        window.dispatchEvent(new CustomEvent('business-day-start-hour-updated', {
+            detail: { hour }
+        }));
+
+        if (typeof generateReport === 'function') {
+            generateReport();
+        }
+
+        if (typeof filterOrders === 'function') {
+            filterOrders();
+        }
+
+        if (typeof loadExpenses === 'function') {
+            loadExpenses();
+        }
+
+        showToast('Business day cutoff updated', 'success');
+    } catch (error) {
+        console.error('Save business day start hour error:', error);
+        showToast('Error saving business day settings', 'error');
+    }
+}
+
 // Event listeners for Settings
 document.getElementById('createBackupBtn')?.addEventListener('click', createBackup);
 document.getElementById('restoreBackupBtn')?.addEventListener('click', restoreBackup);
 document.getElementById('autoBackupToggle')?.addEventListener('change', toggleAutoBackup);
+document.getElementById('saveBusinessDayBtn')?.addEventListener('click', saveBusinessDayStartHour);
 
 // Cloud Setup
 document.getElementById('saveCloudBtn')?.addEventListener('click', async () => {

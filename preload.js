@@ -66,6 +66,12 @@ contextBridge.exposeInMainWorld('api', {
         changePassword: (oldPassword, newPassword) => ipcRenderer.invoke('auth:changePassword', oldPassword, newPassword)
     },
 
+    // Settings API
+    settings: {
+        getBusinessDayConfig: () => ipcRenderer.invoke('settings:getBusinessDayConfig'),
+        setBusinessDayStartHour: (hour) => ipcRenderer.invoke('settings:setBusinessDayStartHour', hour)
+    },
+
     // Backup API
     backup: {
         create: () => ipcRenderer.invoke('backup:create'),

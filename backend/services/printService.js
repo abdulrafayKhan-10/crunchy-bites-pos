@@ -81,7 +81,10 @@ class PrintService {
 
       const { app, shell } = require('electron');
       const downloadsPath = app.getPath('downloads');
-      const fileName = `report-${reportData.date}-${Date.now()}.pdf`;
+      const reportPeriodLabel = reportData.startDate && reportData.endDate
+        ? `${reportData.startDate}_to_${reportData.endDate}`
+        : (reportData.date || new Date().toISOString().split('T')[0]);
+      const fileName = `report-${reportPeriodLabel}-${Date.now()}.pdf`;
       const filePath = path.join(downloadsPath, fileName);
 
       fs.writeFileSync(filePath, pdfData);
@@ -100,7 +103,10 @@ class PrintService {
     const totalSales = summary.total_sales || 0;
     const totalOrders = summary.total_orders || 0;
     const averageOrder = totalOrders > 0 ? (totalSales / totalOrders) : 0;
-    const date = new Date(data.date).toLocaleDateString('en-PK', { timeZone: 'Asia/Karachi', weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    const cutoffHour = Number.isInteger(data.businessDayStartHour) ? data.businessDayStartHour : 6;
+    const periodText = data.startDate && data.endDate
+      ? `${data.startDate} to ${data.endDate}`
+      : (data.date || new Date().toISOString().split('T')[0]);
 
     return `
  <!DOCTYPE html>
@@ -125,7 +131,8 @@ class PrintService {
  <body>
    <div class="header">
      <div class="title">Crunchy Bites - Daily Sales Report</div>
-     <div class="subtitle">${date}</div>
+     <div class="subtitle">Period: ${periodText}</div>
+     <div class="subtitle">Business Day Cutoff: ${String(cutoffHour).padStart(2, '0')}:00</div>
    </div>
  
    <div class="stats-grid">

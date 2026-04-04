@@ -122,6 +122,7 @@ function createTables() {
       customer_id INTEGER,
       total_amount REAL NOT NULL,
       order_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+      business_date DATE,
       is_walk_in INTEGER DEFAULT 0,
       FOREIGN KEY (customer_id) REFERENCES customers(id)
     )
@@ -152,6 +153,7 @@ function createTables() {
       quantity INTEGER DEFAULT 1,
       category TEXT,
       date DATETIME DEFAULT CURRENT_TIMESTAMP,
+      business_date DATE,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
@@ -163,6 +165,20 @@ function createTables() {
 }
 
 function upgradeDatabase() {
+  // Business day starts at 06:00 and runs until next day 05:59.
+  const businessDateExpression = `
+    CASE
+      WHEN CAST(strftime('%H', order_date) AS INTEGER) < 6 THEN DATE(order_date, '-1 day')
+      ELSE DATE(order_date)
+    END
+  `;
+  const expenseBusinessDateExpression = `
+    CASE
+      WHEN CAST(strftime('%H', date) AS INTEGER) < 6 THEN DATE(date, '-1 day')
+      ELSE DATE(date)
+    END
+  `;
+
   try {
     // Add unit column to expenses table
     db.run('ALTER TABLE expenses ADD COLUMN unit TEXT');
@@ -172,6 +188,64 @@ function upgradeDatabase() {
     if (!error.message.includes('duplicate column name')) {
       console.warn('Migration warning:', error.message);
     }
+  }
+
+  try {
+    // Add business date column to orders table
+    db.run('ALTER TABLE orders ADD COLUMN business_date DATE');
+    console.log('Added business_date column to orders table');
+  } catch (error) {
+    if (!error.message.includes('duplicate column name')) {
+      console.warn('Migration warning:', error.message);
+    }
+  }
+
+  try {
+    // Backfill business date for all existing orders where missing
+    db.run(`
+      UPDATE orders
+      SET business_date = ${businessDateExpression}
+      WHERE business_date IS NULL OR business_date = ''
+    `);
+    console.log('Backfilled business_date values for existing orders');
+  } catch (error) {
+    console.warn('Migration warning:', error.message);
+  }
+
+  try {
+    db.run('CREATE INDEX IF NOT EXISTS idx_orders_business_date ON orders(business_date)');
+    console.log('Ensured index on orders.business_date');
+  } catch (error) {
+    console.warn('Migration warning:', error.message);
+  }
+
+  try {
+    // Add business date column to expenses table
+    db.run('ALTER TABLE expenses ADD COLUMN business_date DATE');
+    console.log('Added business_date column to expenses table');
+  } catch (error) {
+    if (!error.message.includes('duplicate column name')) {
+      console.warn('Migration warning:', error.message);
+    }
+  }
+
+  try {
+    // Backfill business date for existing expenses
+    db.run(`
+      UPDATE expenses
+      SET business_date = ${expenseBusinessDateExpression}
+      WHERE business_date IS NULL OR business_date = ''
+    `);
+    console.log('Backfilled business_date values for existing expenses');
+  } catch (error) {
+    console.warn('Migration warning:', error.message);
+  }
+
+  try {
+    db.run('CREATE INDEX IF NOT EXISTS idx_expenses_business_date ON expenses(business_date)');
+    console.log('Ensured index on expenses.business_date');
+  } catch (error) {
+    console.warn('Migration warning:', error.message);
   }
 }
 

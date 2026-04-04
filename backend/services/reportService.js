@@ -1,4 +1,32 @@
 const DbHelper = require('../../database/dbHelper');
+const SettingsService = require('./settingsService');
+
+function getBusinessDateSql(alias, businessDayStartHour) {
+  return `
+    COALESCE(
+      ${alias}.business_date,
+      CASE
+        WHEN CAST(strftime('%H', ${alias}.order_date) AS INTEGER) < ${businessDayStartHour} THEN DATE(${alias}.order_date, '-1 day')
+        ELSE DATE(${alias}.order_date)
+      END
+    )
+  `;
+}
+
+function toSqlDate(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function toCurrentBusinessDate(businessDayStartHour) {
+  const now = new Date();
+  if (now.getHours() < businessDayStartHour) {
+    now.setDate(now.getDate() - 1);
+  }
+  return toSqlDate(now);
+}
 
 /**
  * Report Service
@@ -8,6 +36,11 @@ const DbHelper = require('../../database/dbHelper');
 class ReportService {
   constructor() {
     this.db = new DbHelper();
+    this.settingsService = new SettingsService();
+  }
+
+  getBusinessDayStartHour() {
+    return this.settingsService.getBusinessDayStartHour();
   }
 
   /**
@@ -15,7 +48,10 @@ class ReportService {
    * @param {string} date - Date in YYYY-MM-DD format (defaults to today)
    */
   getEndOfDayReport(date = null) {
-    const targetDate = date || new Date().toISOString().split('T')[0];
+    const businessDayStartHour = this.getBusinessDayStartHour();
+    const ordersBusinessDateSql = getBusinessDateSql('orders', businessDayStartHour);
+    const orderAliasBusinessDateSql = getBusinessDateSql('o', businessDayStartHour);
+    const targetDate = date || toCurrentBusinessDate(businessDayStartHour);
 
     // Get total orders and sales
     const summary = this.db.prepare(`
@@ -23,7 +59,7 @@ class ReportService {
         COUNT(*) as total_orders,
         COALESCE(SUM(total_amount), 0) as total_sales
       FROM orders
-      WHERE DATE(order_date) = DATE(?)
+      WHERE ${ordersBusinessDateSql} = DATE(?)
     `).get(targetDate);
 
     // Get product-wise breakdown
@@ -36,7 +72,7 @@ class ReportService {
       FROM order_items oi
       JOIN products p ON oi.product_id = p.id
       JOIN orders o ON oi.order_id = o.id
-      WHERE DATE(o.order_date) = DATE(?) AND oi.product_id IS NOT NULL
+      WHERE ${orderAliasBusinessDateSql} = DATE(?) AND oi.product_id IS NOT NULL
       GROUP BY p.id, p.name, p.category
       ORDER BY total_sales DESC
     `).all(targetDate);
@@ -50,7 +86,7 @@ class ReportService {
       FROM order_items oi
       JOIN deals d ON oi.deal_id = d.id
       JOIN orders o ON oi.order_id = o.id
-      WHERE DATE(o.order_date) = DATE(?) AND oi.deal_id IS NOT NULL
+      WHERE ${orderAliasBusinessDateSql} = DATE(?) AND oi.deal_id IS NOT NULL
       GROUP BY d.id, d.name
       ORDER BY total_sales DESC
     `).all(targetDate);
@@ -62,13 +98,18 @@ class ReportService {
         COUNT(*) as order_count,
         SUM(total_amount) as sales
       FROM orders
-      WHERE DATE(order_date) = DATE(?)
+      WHERE ${ordersBusinessDateSql} = DATE(?)
       GROUP BY strftime('%H', order_date)
-      ORDER BY hour
+      ORDER BY CASE
+        WHEN CAST(strftime('%H', order_date) AS INTEGER) < ${businessDayStartHour}
+          THEN CAST(strftime('%H', order_date) AS INTEGER) + 24
+        ELSE CAST(strftime('%H', order_date) AS INTEGER)
+      END
     `).all(targetDate);
 
     return {
       date: targetDate,
+      businessDayStartHour,
       summary: {
         total_orders: summary.total_orders,
         total_sales: summary.total_sales
@@ -83,13 +124,16 @@ class ReportService {
    * Get sales summary for a date range
    */
   getDateRangeReport(startDate, endDate) {
+    const businessDayStartHour = this.getBusinessDayStartHour();
+    const ordersBusinessDateSql = getBusinessDateSql('orders', businessDayStartHour);
+    const orderAliasBusinessDateSql = getBusinessDateSql('o', businessDayStartHour);
     // 1. Overall Summary
     const summary = this.db.prepare(`
       SELECT 
         COUNT(*) as total_orders,
         COALESCE(SUM(total_amount), 0) as total_sales
       FROM orders
-      WHERE DATE(order_date) BETWEEN DATE(?) AND DATE(?)
+      WHERE ${ordersBusinessDateSql} BETWEEN DATE(?) AND DATE(?)
     `).get(startDate, endDate);
 
     // 2. Product Breakdown
@@ -102,7 +146,7 @@ class ReportService {
       FROM order_items oi
       LEFT JOIN products p ON oi.product_id = p.id
       JOIN orders o ON oi.order_id = o.id
-      WHERE DATE(o.order_date) BETWEEN DATE(?) AND DATE(?) AND oi.product_id IS NOT NULL
+      WHERE ${orderAliasBusinessDateSql} BETWEEN DATE(?) AND DATE(?) AND oi.product_id IS NOT NULL
       GROUP BY p.id, p.name, p.category
       ORDER BY total_sales DESC
     `).all(startDate, endDate);
@@ -116,7 +160,7 @@ class ReportService {
       FROM order_items oi
       LEFT JOIN deals d ON oi.deal_id = d.id
       JOIN orders o ON oi.order_id = o.id
-      WHERE DATE(o.order_date) BETWEEN DATE(?) AND DATE(?) AND oi.deal_id IS NOT NULL
+      WHERE ${orderAliasBusinessDateSql} BETWEEN DATE(?) AND DATE(?) AND oi.deal_id IS NOT NULL
       GROUP BY d.id, d.name
       ORDER BY total_sales DESC
     `).all(startDate, endDate);
@@ -135,13 +179,14 @@ class ReportService {
         COALESCE(customers.name, 'Walk-in') as customer_name
       FROM orders
       LEFT JOIN customers ON orders.customer_id = customers.id
-      WHERE strftime('%Y-%m-%d', orders.order_date) BETWEEN ? AND ?
+      WHERE ${ordersBusinessDateSql} BETWEEN DATE(?) AND DATE(?)
       ORDER BY orders.order_date DESC
     `).all(startDate, endDate);
 
     return {
       startDate,
       endDate,
+      businessDayStartHour,
       summary: {
         total_orders: summary.total_orders,
         total_sales: summary.total_sales
@@ -185,7 +230,6 @@ class ReportService {
       WHERE oi.deal_id IS NOT NULL
       GROUP BY d.id
       ORDER BY total_revenue DESC
-      LIMIT ?
       LIMIT ?
     `).all(limit);
   }

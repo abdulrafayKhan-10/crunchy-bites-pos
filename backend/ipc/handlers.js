@@ -440,6 +440,22 @@ function setupIpcHandlers() {
         }
     });
 
+    ipcMain.handle('settings:getBusinessDayConfig', async () => {
+        try {
+            return settingsService.getBusinessDayConfig();
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    });
+
+    ipcMain.handle('settings:setBusinessDayStartHour', async (event, hour) => {
+        try {
+            return settingsService.setBusinessDayStartHour(hour);
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    });
+
     console.log('IPC handlers registered successfully');
 }
 

@@ -286,6 +286,17 @@
               <p class="toggle-description">Automatically backs up your database once per day when the app starts. Keeps
                 the last 7 backups.</p>
             </div>
+
+            <div class="settings-toggle" style="margin-top: 1rem;">
+              <label for="businessDayStartHour"><strong>Business Day Start Hour</strong></label>
+              <div class="form-row" style="margin-top: 0.5rem; display: flex; gap: 0.75rem; align-items: center;">
+                <input type="number" id="businessDayStartHour" min="0" max="23" step="1" style="max-width: 120px;">
+                <button class="btn btn-primary" id="saveBusinessDayBtn" type="button">Save Cutoff</button>
+              </div>
+              <p class="toggle-description" id="businessDayInfoText">
+                Sales before this hour are counted in the previous business date.
+              </p>
+            </div>
           </div>
 
           <div class="settings-section">

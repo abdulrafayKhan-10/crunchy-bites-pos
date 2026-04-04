@@ -11,6 +11,7 @@ let currentView = 'new-order';
 let currentTab = 'products';
 let currentCategory = 'all';
 let isAdminUnlocked = false;
+let businessDayStartHour = 6;
 
 // Immediate log to verify renderer loading
 if (window.api && window.api.logger) {
@@ -31,6 +32,26 @@ function initializeApp() {
     // Set current date
     updateDateTime();
     setInterval(updateDateTime, 60000); // Update every minute
+
+    loadBusinessDaySettings();
+
+    window.addEventListener('business-day-start-hour-updated', (event) => {
+        const updatedHour = Number(event.detail?.hour);
+        if (Number.isInteger(updatedHour) && updatedHour >= 0 && updatedHour <= 23) {
+            businessDayStartHour = updatedHour;
+        }
+    });
+}
+
+async function loadBusinessDaySettings() {
+    try {
+        const result = await window.api.settings.getBusinessDayConfig();
+        if (result.success) {
+            businessDayStartHour = result.data.businessDayStartHour;
+        }
+    } catch (error) {
+        console.error('Failed to load business day settings:', error);
+    }
 }
 
 // ============ AUTH / LOCK ============
@@ -122,6 +143,14 @@ function updateDateTime() {
     });
 }
 
+function getCurrentBusinessDateString() {
+    const now = new Date();
+    if (now.getHours() < businessDayStartHour) {
+        now.setDate(now.getDate() - 1);
+    }
+    return now.toLocaleDateString('en-CA');
+}
+
 // ============ EVENT LISTENERS ============
 // ============ EVENT LISTENERS ============
 function setupEventListeners() {
@@ -166,7 +195,7 @@ function setupEventListeners() {
 
     // Reports - Auto-generate on date change
     const now = new Date();
-    const today = now.toLocaleDateString('en-CA');
+    const today = getCurrentBusinessDateString();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toLocaleDateString('en-CA');
 
     const reportStart = document.getElementById('reportStartDate');
@@ -246,7 +275,7 @@ function switchView(viewName) {
     document.getElementById(`${viewName}-view`).classList.add('active');
 
     // Load data for specific views
-    const today = new Date().toLocaleDateString('en-CA');
+    const today = getCurrentBusinessDateString();
 
     if (viewName === 'products') loadProducts();
     if (viewName === 'deals') loadDeals();
@@ -372,8 +401,7 @@ async function filterOrders() {
 }
 
 async function loadTodayOrders() {
-    const today = new Date().toISOString().split('T')[0];
-    const result = await window.api.orders.getByDate(today); // Still using getByDate for "today"
+    const result = await window.api.orders.getToday();
     if (result.success) {
         renderOrdersTable(result.data);
     }
@@ -1273,6 +1301,7 @@ function renderReportSafe(data) {
     const summary = data.summary || { total_orders: 0, total_sales: 0 };
     const products = Array.isArray(data.products) ? data.products : [];
     const deals = Array.isArray(data.deals) ? data.deals : [];
+    const reportCutoffHour = Number.isInteger(data.businessDayStartHour) ? data.businessDayStartHour : businessDayStartHour;
 
     const avgOrderValue = summary.total_orders > 0
         ? (summary.total_sales / summary.total_orders).toFixed(2)
@@ -1280,6 +1309,12 @@ function renderReportSafe(data) {
 
     // Use 'highlight' class for better visibility (White bg, colored text)
     let html = `
+        <div class="report-section" style="margin-bottom: 0.75rem;">
+            <p class="text-secondary" style="margin: 0;">
+                Business Day Cutoff: ${String(reportCutoffHour).padStart(2, '0')}:00
+                (sales before this hour are counted on previous business date)
+            </p>
+        </div>
     <div class="report-summary">
       <div class="summary-card highlight">
         <h3>Total Orders</h3>
